@@ -45,17 +45,17 @@ impl RouteRemoveArgs {
         wait_for_public_internet_ready(&api, &public_internet_ready).await?;
 
         let router = api.routing_context()?.with_default_safety()?;
-        let _ = router
+        let opened = router
             .open_dht_record(identity.record_key.clone(), Some(identity.keypair.clone()))
-            .await?;
+            .await
+            .is_ok();
 
-        router
-            .set_dht_value(identity.record_key.clone(), 0, Vec::new(), None)
-            .await?;
-        router.close_dht_record(identity.record_key.clone()).await?;
-        router
-            .delete_dht_record(identity.record_key.clone())
-            .await?;
+        if opened {
+            router.close_dht_record(identity.record_key.clone()).await?;
+            router
+                .delete_dht_record(identity.record_key.clone())
+                .await?;
+        }
 
         api.shutdown().await;
 
