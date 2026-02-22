@@ -1,5 +1,4 @@
-use crate::cli::global_args::GlobalArgs;
-use crate::paths::APP_HOME;
+use crate::paths::AppHome;
 use eyre::Context;
 use eyre::Result;
 use eyre::bail;
@@ -16,6 +15,42 @@ const KEYPAIR_FILE: &str = "keypair.txt";
 const FRIENDS_FILE: &str = "friends.tsv";
 const ROUTES_FILE: &str = "routes.tsv";
 const ROUTE_IDENTITIES_FILE: &str = "route_identities.tsv";
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProfileHome {
+    app_home: AppHome,
+    profile: String,
+}
+
+impl ProfileHome {
+    /// # Errors
+    ///
+    /// Returns an error if the profile name is invalid.
+    pub fn new(app_home: AppHome, profile: String) -> Result<Self> {
+        validate_profile_name(&profile)?;
+        Ok(Self { app_home, profile })
+    }
+
+    #[must_use]
+    pub fn app_home(&self) -> &AppHome {
+        &self.app_home
+    }
+
+    #[must_use]
+    pub fn profile(&self) -> &str {
+        &self.profile
+    }
+
+    #[must_use]
+    pub fn profile_dir(&self) -> PathBuf {
+        profiles_root(&self.app_home).join(&self.profile)
+    }
+
+    #[must_use]
+    pub fn profile_veilid_dir(&self) -> PathBuf {
+        self.profile_dir().join("veilid")
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FriendEntry {
@@ -41,39 +76,52 @@ pub struct FriendRouteEntry {
 /// # Errors
 ///
 /// Returns an error if directories or initial files cannot be created.
-pub fn ensure_initialized() -> Result<()> {
-    APP_HOME.ensure_dir()?;
-    std::fs::create_dir_all(profiles_root())?;
+pub fn ensure_initialized(app_home: &AppHome) -> Result<()> {
+    app_home.ensure_dir()?;
+    std::fs::create_dir_all(profiles_root(app_home))?;
 
-    if list_profiles()?.is_empty() {
-        create_profile("main")?;
+    if list_profiles(app_home)?.is_empty() {
+        create_profile(app_home, "main")?;
     }
 
-    if !active_profile_file().exists() {
-        set_active_profile("main")?;
+    if !active_profile_file(app_home).exists() {
+        set_active_profile(app_home, "main")?;
     }
 
     Ok(())
 }
 
-/// Resolve the effective profile from global CLI arguments.
+/// Resolve a profile home from app home and an optional profile override.
 ///
 /// # Errors
 ///
 /// Returns an error if initialization fails, the profile name is invalid,
 /// or the selected profile does not exist.
-pub fn resolve_profile(global: &GlobalArgs) -> Result<String> {
-    ensure_initialized()?;
+pub fn resolve_profile_home(
+    app_home: &AppHome,
+    profile_override: Option<&str>,
+) -> Result<ProfileHome> {
+    ensure_initialized(app_home)?;
 
-    if let Some(profile) = &global.profile {
+    if let Some(profile) = profile_override {
         validate_profile_name(profile)?;
-        if !profile_dir(profile).exists() {
+        if !profile_home(app_home, profile)?.profile_dir().exists() {
             bail!("Profile '{}' does not exist.", profile);
         }
-        return Ok(profile.clone());
+        return profile_home(app_home, profile);
     }
 
-    current_active_profile()
+    let profile = current_active_profile(app_home)?;
+    profile_home(app_home, &profile)
+}
+
+/// Build a `ProfileHome` from app home and profile name.
+///
+/// # Errors
+///
+/// Returns an error if the profile name is invalid.
+pub fn profile_home(app_home: &AppHome, profile: &str) -> Result<ProfileHome> {
+    ProfileHome::new(app_home.clone(), profile.to_owned())
 }
 
 /// List all local profiles.
@@ -81,13 +129,13 @@ pub fn resolve_profile(global: &GlobalArgs) -> Result<String> {
 /// # Errors
 ///
 /// Returns an error if the profile directory cannot be read.
-pub fn list_profiles() -> Result<Vec<String>> {
+pub fn list_profiles(app_home: &AppHome) -> Result<Vec<String>> {
     let mut names = Vec::new();
-    if !profiles_root().exists() {
+    if !profiles_root(app_home).exists() {
         return Ok(names);
     }
 
-    for entry in std::fs::read_dir(profiles_root())? {
+    for entry in std::fs::read_dir(profiles_root(app_home))? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
             names.push(entry.file_name().to_string_lossy().to_string());
@@ -104,16 +152,17 @@ pub fn list_profiles() -> Result<Vec<String>> {
 ///
 /// Returns an error if the profile name is invalid, already exists,
 /// or files/directories cannot be created.
-pub fn create_profile(name: &str) -> Result<()> {
+pub fn create_profile(app_home: &AppHome, name: &str) -> Result<()> {
     validate_profile_name(name)?;
-    let dir = profile_dir(name);
+    let dir = profile_home(app_home, name)?.profile_dir();
     if dir.exists() {
         bail!("Profile '{}' already exists.", name);
     }
 
     std::fs::create_dir_all(&dir)?;
-    std::fs::write(friends_file(name), "")?;
-    std::fs::write(routes_file(name), "")?;
+    let profile_home = profile_home(app_home, name)?;
+    std::fs::write(friends_file(&profile_home), "")?;
+    std::fs::write(routes_file(&profile_home), "")?;
     Ok(())
 }
 
@@ -123,25 +172,25 @@ pub fn create_profile(name: &str) -> Result<()> {
 ///
 /// Returns an error if the profile name is invalid, profile does not exist,
 /// or filesystem operations fail.
-pub fn remove_profile(name: &str) -> Result<()> {
+pub fn remove_profile(app_home: &AppHome, name: &str) -> Result<()> {
     validate_profile_name(name)?;
-    let dir = profile_dir(name);
+    let dir = profile_home(app_home, name)?.profile_dir();
     if !dir.exists() {
         bail!("Profile '{}' does not exist.", name);
     }
 
     std::fs::remove_dir_all(&dir)?;
 
-    let active = current_active_profile()?;
+    let active = current_active_profile(app_home)?;
     if active == name {
-        let profiles = list_profiles()?;
+        let profiles = list_profiles(app_home)?;
         if profiles.is_empty() {
-            create_profile("main")?;
-            set_active_profile("main")?;
+            create_profile(app_home, "main")?;
+            set_active_profile(app_home, "main")?;
         } else if profiles.iter().any(|profile| profile == "main") {
-            set_active_profile("main")?;
+            set_active_profile(app_home, "main")?;
         } else {
-            set_active_profile(&profiles[0])?;
+            set_active_profile(app_home, &profiles[0])?;
         }
     }
 
@@ -154,12 +203,12 @@ pub fn remove_profile(name: &str) -> Result<()> {
 ///
 /// Returns an error if the profile name is invalid, profile does not exist,
 /// or the active profile file cannot be written.
-pub fn set_active_profile(name: &str) -> Result<()> {
+pub fn set_active_profile(app_home: &AppHome, name: &str) -> Result<()> {
     validate_profile_name(name)?;
-    if !profile_dir(name).exists() {
+    if !profile_home(app_home, name)?.profile_dir().exists() {
         bail!("Profile '{}' does not exist.", name);
     }
-    std::fs::write(active_profile_file(), format!("{name}\n"))?;
+    std::fs::write(active_profile_file(app_home), format!("{name}\n"))?;
     Ok(())
 }
 
@@ -169,23 +218,23 @@ pub fn set_active_profile(name: &str) -> Result<()> {
 ///
 /// Returns an error if initialization fails, the active profile file cannot be read,
 /// or the file contains an empty profile name.
-pub fn current_active_profile() -> Result<String> {
-    ensure_initialized()?;
-    let text =
-        std::fs::read_to_string(active_profile_file()).wrap_err("failed to read active profile")?;
+pub fn current_active_profile(app_home: &AppHome) -> Result<String> {
+    ensure_initialized(app_home)?;
+    let text = std::fs::read_to_string(active_profile_file(app_home))
+        .wrap_err("failed to read active profile")?;
     let name = text.trim();
     if name.is_empty() {
         bail!("Active profile is empty.");
     }
 
-    if profile_dir(name).exists() {
+    if profile_home(app_home, name)?.profile_dir().exists() {
         return Ok(name.to_owned());
     }
 
-    let profiles = list_profiles()?;
+    let profiles = list_profiles(app_home)?;
     if profiles.is_empty() {
-        create_profile("main")?;
-        set_active_profile("main")?;
+        create_profile(app_home, "main")?;
+        set_active_profile(app_home, "main")?;
         return Ok("main".to_owned());
     }
 
@@ -194,7 +243,7 @@ pub fn current_active_profile() -> Result<String> {
         .find(|profile| profile.as_str() == "main")
         .cloned()
         .unwrap_or_else(|| profiles[0].clone());
-    set_active_profile(&fallback)?;
+    set_active_profile(app_home, &fallback)?;
     Ok(fallback)
 }
 
@@ -203,8 +252,8 @@ pub fn current_active_profile() -> Result<String> {
 /// # Errors
 ///
 /// Returns an error if the keypair file exists but cannot be read or parsed.
-pub fn load_keypair(profile: &str) -> Result<Option<KeyPair>> {
-    let path = keypair_file(profile);
+pub fn load_keypair(profile_home: &ProfileHome) -> Result<Option<KeyPair>> {
+    let path = keypair_file(profile_home);
     if !path.exists() {
         return Ok(None);
     }
@@ -219,9 +268,9 @@ pub fn load_keypair(profile: &str) -> Result<Option<KeyPair>> {
 /// # Errors
 ///
 /// Returns an error if the profile does not exist or the keypair file cannot be written.
-pub fn store_keypair(profile: &str, keypair: &KeyPair) -> Result<()> {
-    ensure_profile_exists(profile)?;
-    std::fs::write(keypair_file(profile), format!("{keypair}\n"))?;
+pub fn store_keypair(profile_home: &ProfileHome, keypair: &KeyPair) -> Result<()> {
+    ensure_profile_exists(profile_home)?;
+    std::fs::write(keypair_file(profile_home), format!("{keypair}\n"))?;
     Ok(())
 }
 
@@ -230,8 +279,8 @@ pub fn store_keypair(profile: &str, keypair: &KeyPair) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error if removing the keypair file fails.
-pub fn remove_keypair(profile: &str) -> Result<()> {
-    let path = keypair_file(profile);
+pub fn remove_keypair(profile_home: &ProfileHome) -> Result<()> {
+    let path = keypair_file(profile_home);
     if path.exists() {
         std::fs::remove_file(path)?;
     }
@@ -243,9 +292,9 @@ pub fn remove_keypair(profile: &str) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error if the profile is invalid or friend data cannot be read/parsed.
-pub fn list_friends(profile: &str) -> Result<Vec<FriendEntry>> {
-    ensure_profile_exists(profile)?;
-    parse_friends_file(&friends_file(profile))
+pub fn list_friends(profile_home: &ProfileHome) -> Result<Vec<FriendEntry>> {
+    ensure_profile_exists(profile_home)?;
+    parse_friends_file(&friends_file(profile_home))
 }
 
 /// Add a friend entry to a profile.
@@ -253,8 +302,8 @@ pub fn list_friends(profile: &str) -> Result<Vec<FriendEntry>> {
 /// # Errors
 ///
 /// Returns an error if the friend already exists or friend data cannot be persisted.
-pub fn add_friend(profile: &str, name: &str, pubkey: PublicKey) -> Result<()> {
-    let mut friends = list_friends(profile)?;
+pub fn add_friend(profile_home: &ProfileHome, name: &str, pubkey: PublicKey) -> Result<()> {
+    let mut friends = list_friends(profile_home)?;
     if friends.iter().any(|f| f.name == name) {
         bail!("Friend '{}' already exists.", name);
     }
@@ -263,7 +312,7 @@ pub fn add_friend(profile: &str, name: &str, pubkey: PublicKey) -> Result<()> {
         pubkey,
     });
     friends.sort_by(|a, b| a.name.cmp(&b.name));
-    write_friends_file(&friends_file(profile), &friends)
+    write_friends_file(&friends_file(profile_home), &friends)
 }
 
 /// Rename a friend entry for a profile.
@@ -272,8 +321,8 @@ pub fn add_friend(profile: &str, name: &str, pubkey: PublicKey) -> Result<()> {
 ///
 /// Returns an error if the source friend does not exist, target name already exists,
 /// or friend data cannot be persisted.
-pub fn rename_friend(profile: &str, old_name: &str, new_name: &str) -> Result<()> {
-    let mut friends = list_friends(profile)?;
+pub fn rename_friend(profile_home: &ProfileHome, old_name: &str, new_name: &str) -> Result<()> {
+    let mut friends = list_friends(profile_home)?;
     if friends.iter().any(|f| f.name == new_name) {
         bail!("Friend '{}' already exists.", new_name);
     }
@@ -284,7 +333,7 @@ pub fn rename_friend(profile: &str, old_name: &str, new_name: &str) -> Result<()
     new_name.clone_into(&mut friend.name);
 
     friends.sort_by(|a, b| a.name.cmp(&b.name));
-    write_friends_file(&friends_file(profile), &friends)
+    write_friends_file(&friends_file(profile_home), &friends)
 }
 
 /// Remove a friend entry from a profile.
@@ -292,14 +341,14 @@ pub fn rename_friend(profile: &str, old_name: &str, new_name: &str) -> Result<()
 /// # Errors
 ///
 /// Returns an error if the friend does not exist or friend data cannot be persisted.
-pub fn remove_friend(profile: &str, name: &str) -> Result<()> {
-    let mut friends = list_friends(profile)?;
+pub fn remove_friend(profile_home: &ProfileHome, name: &str) -> Result<()> {
+    let mut friends = list_friends(profile_home)?;
     let prior_len = friends.len();
     friends.retain(|f| f.name != name);
     if friends.len() == prior_len {
         bail!("Friend '{}' does not exist.", name);
     }
-    write_friends_file(&friends_file(profile), &friends)
+    write_friends_file(&friends_file(profile_home), &friends)
 }
 
 /// Get a friend's public key by friend name.
@@ -307,8 +356,8 @@ pub fn remove_friend(profile: &str, name: &str) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error if the profile data cannot be loaded.
-pub fn friend_public_key(profile: &str, name: &str) -> Result<Option<PublicKey>> {
-    let friends = list_friends(profile)?;
+pub fn friend_public_key(profile_home: &ProfileHome, name: &str) -> Result<Option<PublicKey>> {
+    let friends = list_friends(profile_home)?;
     Ok(friends
         .into_iter()
         .find(|f| f.name == name)
@@ -320,8 +369,11 @@ pub fn friend_public_key(profile: &str, name: &str) -> Result<Option<PublicKey>>
 /// # Errors
 ///
 /// Returns an error if the profile data cannot be loaded.
-pub fn friend_name_by_public_key(profile: &str, pubkey: &PublicKey) -> Result<Option<String>> {
-    let friends = list_friends(profile)?;
+pub fn friend_name_by_public_key(
+    profile_home: &ProfileHome,
+    pubkey: &PublicKey,
+) -> Result<Option<String>> {
+    let friends = list_friends(profile_home)?;
     Ok(friends
         .into_iter()
         .find(|f| &f.pubkey == pubkey)
@@ -333,14 +385,18 @@ pub fn friend_name_by_public_key(profile: &str, pubkey: &PublicKey) -> Result<Op
 /// # Errors
 ///
 /// Returns an error if route data cannot be loaded or persisted.
-pub fn add_route_key(profile: &str, friend: &str, record_key: &RecordKey) -> Result<()> {
-    let mut routes = list_route_keys_by_friend(profile)?;
+pub fn add_route_key(
+    profile_home: &ProfileHome,
+    friend: &str,
+    record_key: &RecordKey,
+) -> Result<()> {
+    let mut routes = list_route_keys_by_friend(profile_home)?;
     let keys = routes.entry(friend.to_owned()).or_default();
     let record_key_text = record_key.to_string();
     if !keys.iter().any(|rk| rk == &record_key_text) {
         keys.push(record_key_text);
     }
-    write_routes(profile, &routes)
+    write_routes(profile_home, &routes)
 }
 
 /// Get known route record keys for a friend.
@@ -348,8 +404,8 @@ pub fn add_route_key(profile: &str, friend: &str, record_key: &RecordKey) -> Res
 /// # Errors
 ///
 /// Returns an error if route data cannot be loaded or record keys cannot be parsed.
-pub fn route_keys_for_friend(profile: &str, friend: &str) -> Result<Vec<RecordKey>> {
-    let routes = list_route_keys_by_friend(profile)?;
+pub fn route_keys_for_friend(profile_home: &ProfileHome, friend: &str) -> Result<Vec<RecordKey>> {
+    let routes = list_route_keys_by_friend(profile_home)?;
     let Some(keys) = routes.get(friend) else {
         return Ok(Vec::new());
     };
@@ -365,10 +421,10 @@ pub fn route_keys_for_friend(profile: &str, friend: &str) -> Result<Vec<RecordKe
 ///
 /// Returns an error if route data cannot be loaded or record keys cannot be parsed.
 pub fn list_friend_route_keys(
-    profile: &str,
+    profile_home: &ProfileHome,
     friend: Option<&str>,
 ) -> Result<Vec<FriendRouteEntry>> {
-    let routes = list_route_keys_by_friend(profile)?;
+    let routes = list_route_keys_by_friend(profile_home)?;
     let mut out = Vec::new();
 
     for (friend_name, keys) in routes {
@@ -400,11 +456,11 @@ pub fn list_friend_route_keys(
 ///
 /// Returns an error if route data cannot be loaded or persisted.
 pub fn remove_friend_route_keys(
-    profile: &str,
+    profile_home: &ProfileHome,
     friend: Option<&str>,
     record_key: Option<&RecordKey>,
 ) -> Result<usize> {
-    let mut routes = list_route_keys_by_friend(profile)?;
+    let mut routes = list_route_keys_by_friend(profile_home)?;
     let before_count = routes.values().map(Vec::len).sum::<usize>();
 
     for (friend_name, keys) in &mut routes {
@@ -423,7 +479,7 @@ pub fn remove_friend_route_keys(
     }
 
     routes.retain(|_, keys| !keys.is_empty());
-    write_routes(profile, &routes)?;
+    write_routes(profile_home, &routes)?;
 
     let after_count = routes.values().map(Vec::len).sum::<usize>();
     Ok(before_count.saturating_sub(after_count))
@@ -435,13 +491,13 @@ pub fn remove_friend_route_keys(
 ///
 /// Returns an error if the route already exists or route identity data cannot be persisted.
 pub fn add_local_route_identity(
-    profile: &str,
+    profile_home: &ProfileHome,
     name: &str,
     keypair: &KeyPair,
     record_key: &RecordKey,
 ) -> Result<()> {
     validate_route_name(name)?;
-    let mut identities = list_local_route_identities(profile)?;
+    let mut identities = list_local_route_identities(profile_home)?;
     if identities.iter().any(|route| route.name == name) {
         bail!("Route '{}' already exists.", name);
     }
@@ -453,7 +509,7 @@ pub fn add_local_route_identity(
     });
     identities.sort_by(|a, b| a.name.cmp(&b.name));
 
-    write_local_route_identities(profile, &identities)
+    write_local_route_identities(profile_home, &identities)
 }
 
 /// Load a named local route identity for a profile.
@@ -461,8 +517,11 @@ pub fn add_local_route_identity(
 /// # Errors
 ///
 /// Returns an error if route identity data cannot be loaded or parsed.
-pub fn local_route_identity(profile: &str, name: &str) -> Result<Option<LocalRouteIdentity>> {
-    let identities = list_local_route_identities(profile)?;
+pub fn local_route_identity(
+    profile_home: &ProfileHome,
+    name: &str,
+) -> Result<Option<LocalRouteIdentity>> {
+    let identities = list_local_route_identities(profile_home)?;
     Ok(identities.into_iter().find(|route| route.name == name))
 }
 
@@ -472,15 +531,15 @@ pub fn local_route_identity(profile: &str, name: &str) -> Result<Option<LocalRou
 ///
 /// Returns an error if route identity data cannot be loaded/persisted,
 /// or the route does not exist.
-pub fn remove_local_route_identity(profile: &str, name: &str) -> Result<()> {
-    let mut identities = list_local_route_identities(profile)?;
+pub fn remove_local_route_identity(profile_home: &ProfileHome, name: &str) -> Result<()> {
+    let mut identities = list_local_route_identities(profile_home)?;
     let prior_len = identities.len();
     identities.retain(|route| route.name != name);
     if identities.len() == prior_len {
         bail!("Route '{}' does not exist.", name);
     }
 
-    write_local_route_identities(profile, &identities)
+    write_local_route_identities(profile_home, &identities)
 }
 
 /// List all named local route identities for a profile.
@@ -488,9 +547,9 @@ pub fn remove_local_route_identity(profile: &str, name: &str) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error if route identity data cannot be loaded or parsed.
-pub fn list_local_route_identities(profile: &str) -> Result<Vec<LocalRouteIdentity>> {
-    ensure_profile_exists(profile)?;
-    let path = route_identities_file(profile);
+pub fn list_local_route_identities(profile_home: &ProfileHome) -> Result<Vec<LocalRouteIdentity>> {
+    ensure_profile_exists(profile_home)?;
+    let path = route_identities_file(profile_home);
     if !path.exists() {
         return Ok(Vec::new());
     }
@@ -518,19 +577,22 @@ pub fn list_local_route_identities(profile: &str) -> Result<Vec<LocalRouteIdenti
     Ok(routes)
 }
 
-fn write_local_route_identities(profile: &str, routes: &[LocalRouteIdentity]) -> Result<()> {
+fn write_local_route_identities(
+    profile_home: &ProfileHome,
+    routes: &[LocalRouteIdentity],
+) -> Result<()> {
     let lines = routes
         .iter()
         .map(|route| format!("{}\t{}\t{}", route.name, route.keypair, route.record_key))
         .collect::<Vec<_>>();
-    std::fs::write(route_identities_file(profile), lines.join("\n"))?;
+    std::fs::write(route_identities_file(profile_home), lines.join("\n"))?;
     Ok(())
 }
 
-fn list_route_keys_by_friend(profile: &str) -> Result<BTreeMap<String, Vec<String>>> {
-    ensure_profile_exists(profile)?;
+fn list_route_keys_by_friend(profile_home: &ProfileHome) -> Result<BTreeMap<String, Vec<String>>> {
+    ensure_profile_exists(profile_home)?;
     let mut out = BTreeMap::<String, Vec<String>>::new();
-    let path = routes_file(profile);
+    let path = routes_file(profile_home);
     if !path.exists() {
         return Ok(out);
     }
@@ -550,14 +612,14 @@ fn list_route_keys_by_friend(profile: &str) -> Result<BTreeMap<String, Vec<Strin
     Ok(out)
 }
 
-fn write_routes(profile: &str, routes: &BTreeMap<String, Vec<String>>) -> Result<()> {
+fn write_routes(profile_home: &ProfileHome, routes: &BTreeMap<String, Vec<String>>) -> Result<()> {
     let mut lines = Vec::new();
     for (friend, keys) in routes {
         for key in keys {
             lines.push(format!("{friend}\t{key}"));
         }
     }
-    std::fs::write(routes_file(profile), lines.join("\n"))?;
+    std::fs::write(routes_file(profile_home), lines.join("\n"))?;
     Ok(())
 }
 
@@ -591,45 +653,35 @@ fn write_friends_file(path: &Path, friends: &[FriendEntry]) -> Result<()> {
     Ok(())
 }
 
-#[must_use]
-pub fn profile_dir(profile: &str) -> PathBuf {
-    profiles_root().join(profile)
+fn profiles_root(app_home: &AppHome) -> PathBuf {
+    app_home.file_path(PROFILES_DIR)
 }
 
-#[must_use]
-pub fn profile_veilid_dir(profile: &str) -> PathBuf {
-    profile_dir(profile).join("veilid")
+fn active_profile_file(app_home: &AppHome) -> PathBuf {
+    app_home.file_path(ACTIVE_PROFILE_FILE)
 }
 
-fn profiles_root() -> PathBuf {
-    APP_HOME.file_path(PROFILES_DIR)
+fn keypair_file(profile_home: &ProfileHome) -> PathBuf {
+    profile_home.profile_dir().join(KEYPAIR_FILE)
 }
 
-fn active_profile_file() -> PathBuf {
-    APP_HOME.file_path(ACTIVE_PROFILE_FILE)
+fn friends_file(profile_home: &ProfileHome) -> PathBuf {
+    profile_home.profile_dir().join(FRIENDS_FILE)
 }
 
-fn keypair_file(profile: &str) -> PathBuf {
-    profile_dir(profile).join(KEYPAIR_FILE)
+fn routes_file(profile_home: &ProfileHome) -> PathBuf {
+    profile_home.profile_dir().join(ROUTES_FILE)
 }
 
-fn friends_file(profile: &str) -> PathBuf {
-    profile_dir(profile).join(FRIENDS_FILE)
+fn route_identities_file(profile_home: &ProfileHome) -> PathBuf {
+    profile_home.profile_dir().join(ROUTE_IDENTITIES_FILE)
 }
 
-fn routes_file(profile: &str) -> PathBuf {
-    profile_dir(profile).join(ROUTES_FILE)
-}
-
-fn route_identities_file(profile: &str) -> PathBuf {
-    profile_dir(profile).join(ROUTE_IDENTITIES_FILE)
-}
-
-fn ensure_profile_exists(profile: &str) -> Result<()> {
-    validate_profile_name(profile)?;
-    let dir = profile_dir(profile);
+fn ensure_profile_exists(profile_home: &ProfileHome) -> Result<()> {
+    validate_profile_name(profile_home.profile())?;
+    let dir = profile_home.profile_dir();
     if !dir.exists() {
-        bail!("Profile '{}' does not exist.", profile);
+        bail!("Profile '{}' does not exist.", profile_home.profile());
     }
     Ok(())
 }

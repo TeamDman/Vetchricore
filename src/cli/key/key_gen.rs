@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::veilid_runtime::printing_update_callback;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
@@ -13,13 +13,14 @@ use veilid_core::CRYPTO_KIND_VLD0;
 pub struct KeyGenArgs;
 
 impl KeyGenArgs {
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
-        if app_state::load_keypair(&profile)?.is_some() {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let profile_home = context.profile_home();
+        if app_state::load_keypair(profile_home)?.is_some() {
             bail!("You already have a keypair.");
         }
 
-        let api = start_api_for_profile(&profile, false, printing_update_callback(false)).await?;
+        let api =
+            start_api_for_profile(profile_home, false, printing_update_callback(false)).await?;
         let crypto = api.crypto()?;
         let vcrypto = crypto
             .get_async(CRYPTO_KIND_VLD0)
@@ -27,7 +28,7 @@ impl KeyGenArgs {
         let keypair = vcrypto.generate_keypair().await;
         api.shutdown().await;
 
-        app_state::store_keypair(&profile, &keypair)?;
+        app_state::store_keypair(profile_home, &keypair)?;
         println!("Public key: {}", keypair.key());
         println!("Private key: this value is hidden");
 

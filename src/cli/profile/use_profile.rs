@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -17,9 +17,9 @@ impl ProfileUseArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, _global: &GlobalArgs) -> Result<()> {
-        app_state::ensure_initialized()?;
-        app_state::set_active_profile(&self.name)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        app_state::ensure_initialized(context.app_home())?;
+        app_state::set_active_profile(context.app_home(), &self.name)?;
         println!("Now using {}.", self.name);
         Ok(())
     }

@@ -1,4 +1,4 @@
-use crate::cli::app_state::profile_veilid_dir;
+use crate::cli::app_state::ProfileHome;
 use eyre::Result;
 use std::sync::Arc;
 use veilid_core::VeilidAPI;
@@ -25,11 +25,11 @@ pub fn printing_update_callback(print_updates: bool) -> UpdateCallback {
 /// Returns an error if profile data directories cannot be created,
 /// Veilid startup fails, or attach fails when requested.
 pub async fn start_api_for_profile(
-    profile: &str,
+    profile_home: &ProfileHome,
     attach: bool,
     update_callback: UpdateCallback,
 ) -> Result<VeilidAPI> {
-    let veilid_data_dir = profile_veilid_dir(profile);
+    let veilid_data_dir = profile_home.profile_veilid_dir();
     let protected_store_dir = veilid_data_dir.join("protected_store");
     let table_store_dir = veilid_data_dir.join("table_store");
 
@@ -38,7 +38,7 @@ pub async fn start_api_for_profile(
 
     let config = VeilidConfig {
         program_name: "vetchricore".to_owned(),
-        namespace: format!("vetchricore-{profile}"),
+        namespace: format!("vetchricore-{}", profile_home.profile()),
         protected_store: VeilidConfigProtectedStore {
             always_use_insecure_storage: true,
             directory: protected_store_dir.to_string_lossy().to_string(),

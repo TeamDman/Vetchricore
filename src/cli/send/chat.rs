@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Context;
@@ -30,22 +30,22 @@ pub struct SendChatArgs {
 }
 
 impl SendChatArgs {
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         if self.to != "to" {
             bail!("Usage: send chat to <friend> [--message <text>]");
         }
 
-        let profile = app_state::resolve_profile(global)?;
-        let my_keypair = app_state::load_keypair(&profile)?
+        let profile_home = context.profile_home();
+        let my_keypair = app_state::load_keypair(profile_home)?
             .ok_or_else(|| eyre::eyre!("You have no key. Run 'vetchricore key gen' first."))?;
-        let friend_key = app_state::friend_public_key(&profile, &self.friend)?.ok_or_else(|| {
+        let friend_key = app_state::friend_public_key(profile_home, &self.friend)?.ok_or_else(|| {
             eyre::eyre!(
                 "Friend '{}' not found. Add them with 'vetchricore friend add <name> <pubkey>'.",
                 self.friend
             )
         })?;
 
-        let keys = app_state::route_keys_for_friend(&profile, &self.friend)?;
+        let keys = app_state::route_keys_for_friend(profile_home, &self.friend)?;
         if keys.is_empty() {
             bail!("No route record keys configured for {}.", self.friend);
         }
@@ -62,7 +62,7 @@ impl SendChatArgs {
             }) as crate::cli::veilid_runtime::UpdateCallback
         };
 
-        let api = start_api_for_profile(&profile, true, callback).await?;
+        let api = start_api_for_profile(profile_home, true, callback).await?;
         if !public_internet_ready.load(Ordering::Acquire) {
             let state = api.get_state().await?;
             if state.attachment.public_internet_ready {

@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -17,9 +17,8 @@ impl FriendRemoveArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
-        app_state::remove_friend(&profile, &self.name)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        app_state::remove_friend(context.profile_home(), &self.name)?;
         println!("{} has been unfriended.", self.name);
         Ok(())
     }

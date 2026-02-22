@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -19,9 +19,8 @@ impl FriendRenameArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
-        app_state::rename_friend(&profile, &self.old_name, &self.new_name)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        app_state::rename_friend(context.profile_home(), &self.old_name, &self.new_name)?;
         println!("{} has been renamed to {}.", self.old_name, self.new_name);
         Ok(())
     }

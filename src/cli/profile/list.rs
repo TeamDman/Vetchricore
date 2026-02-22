@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::profile::details::print_detailed_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -18,12 +18,13 @@ impl ProfileListArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, _global: &GlobalArgs) -> Result<()> {
-        app_state::ensure_initialized()?;
-        let active = app_state::current_active_profile()?;
-        for profile in app_state::list_profiles()? {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        app_state::ensure_initialized(context.app_home())?;
+        let active = app_state::current_active_profile(context.app_home())?;
+        for profile in app_state::list_profiles(context.app_home())? {
+            let profile_home = app_state::profile_home(context.app_home(), &profile)?;
             if self.detailed {
-                print_detailed_profile(&profile, profile == active)?;
+                print_detailed_profile(&profile_home, profile == active)?;
                 println!();
             } else if profile == active {
                 println!("{profile} (active)");

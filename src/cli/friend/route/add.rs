@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -20,11 +20,14 @@ impl FriendRouteAddArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         let key = self.record_id.parse::<RecordKey>()?;
-        app_state::add_route_key(&profile, &self.friend, &key)?;
-        println!("Added a route to {} for {}.", self.friend, profile);
+        app_state::add_route_key(context.profile_home(), &self.friend, &key)?;
+        println!(
+            "Added a route to {} for {}.",
+            self.friend,
+            context.profile_home().profile()
+        );
         Ok(())
     }
 }

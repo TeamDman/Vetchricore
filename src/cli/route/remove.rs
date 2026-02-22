@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -24,9 +24,9 @@ impl RouteRemoveArgs {
     ///
     /// Returns an error if the route does not exist, network readiness cannot be reached,
     /// DHT cleanup fails, or route identity persistence update fails.
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
-        let identity = app_state::local_route_identity(&profile, &self.name)?
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let profile_home = context.profile_home();
+        let identity = app_state::local_route_identity(profile_home, &self.name)?
             .ok_or_else(|| eyre::eyre!("Route '{}' does not exist.", self.name))?;
 
         let public_internet_ready = Arc::new(AtomicBool::new(false));
@@ -41,7 +41,7 @@ impl RouteRemoveArgs {
             }) as crate::cli::veilid_runtime::UpdateCallback
         };
 
-        let api = start_api_for_profile(&profile, true, callback).await?;
+        let api = start_api_for_profile(profile_home, true, callback).await?;
         wait_for_public_internet_ready(&api, &public_internet_ready).await?;
 
         let router = api.routing_context()?.with_default_safety()?;
@@ -59,7 +59,7 @@ impl RouteRemoveArgs {
 
         api.shutdown().await;
 
-        app_state::remove_local_route_identity(&profile, &self.name)?;
+        app_state::remove_local_route_identity(profile_home, &self.name)?;
         println!("Route '{}' has been removed.", self.name);
         Ok(())
     }

@@ -1,4 +1,5 @@
 use crate::cli::app_state;
+use crate::cli::app_state::ProfileHome;
 use eyre::Result;
 
 const RESET: &str = "\x1b[0m";
@@ -17,7 +18,8 @@ fn paint(style: &str, value: &str) -> String {
 /// # Errors
 ///
 /// Returns an error if profile metadata cannot be loaded.
-pub(super) fn print_detailed_profile(profile: &str, is_active: bool) -> Result<()> {
+pub(super) fn print_detailed_profile(profile_home: &ProfileHome, is_active: bool) -> Result<()> {
+    let profile = profile_home.profile();
     let title = if is_active {
         format!("{} {}", profile, paint(GREEN, "(active)"))
     } else {
@@ -25,7 +27,7 @@ pub(super) fn print_detailed_profile(profile: &str, is_active: bool) -> Result<(
     };
     println!("{BOLD_CYAN}{title}{RESET}");
 
-    let keypair = app_state::load_keypair(profile)?;
+    let keypair = app_state::load_keypair(profile_home)?;
     match keypair {
         Some(keypair) => {
             println!("  {} {}", paint(MAGENTA, "profile pubkey:"), keypair.key());
@@ -39,7 +41,7 @@ pub(super) fn print_detailed_profile(profile: &str, is_active: bool) -> Result<(
         }
     }
 
-    let friends = app_state::list_friends(profile)?;
+    let friends = app_state::list_friends(profile_home)?;
     println!("  {} {}", paint(YELLOW, "friends:"), friends.len());
     if friends.is_empty() {
         println!("    {}", paint(DIM, "<none>"));
@@ -49,7 +51,7 @@ pub(super) fn print_detailed_profile(profile: &str, is_active: bool) -> Result<(
         }
     }
 
-    let friend_routes = app_state::list_friend_route_keys(profile, None)?;
+    let friend_routes = app_state::list_friend_route_keys(profile_home, None)?;
     println!(
         "  {} {}",
         paint(YELLOW, "friend routes:"),
@@ -63,7 +65,7 @@ pub(super) fn print_detailed_profile(profile: &str, is_active: bool) -> Result<(
         }
     }
 
-    let listen_routes = app_state::list_local_route_identities(profile)?;
+    let listen_routes = app_state::list_local_route_identities(profile_home)?;
     println!(
         "  {} {}",
         paint(YELLOW, "listen routes:"),

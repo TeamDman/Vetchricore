@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -13,9 +13,8 @@ impl FriendListArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
-        let friends = app_state::list_friends(&profile)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let friends = app_state::list_friends(context.profile_home())?;
         if friends.is_empty() {
             println!("You have no friends. A new dawn awaits.");
             return Ok(());

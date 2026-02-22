@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use eyre::bail;
@@ -18,9 +18,9 @@ impl RouteShowArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
-        let Some(route) = app_state::local_route_identity(&profile, &self.name)? else {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let Some(route) = app_state::local_route_identity(context.profile_home(), &self.name)?
+        else {
             bail!("Route '{}' does not exist.", self.name);
         };
 

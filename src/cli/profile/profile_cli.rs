@@ -1,5 +1,5 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::profile::add::ProfileAddArgs;
 use crate::cli::profile::list::ProfileListArgs;
 use crate::cli::profile::remove::ProfileRemoveArgs;
@@ -31,13 +31,13 @@ impl ProfileArgs {
     /// # Errors
     ///
     /// Returns an error if the selected profile subcommand fails.
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         match self.command {
-            ProfileCommand::Add(args) => args.invoke(global).await?,
-            ProfileCommand::List(args) => args.invoke(global).await?,
-            ProfileCommand::Use(args) => args.invoke(global).await?,
-            ProfileCommand::Remove(args) => args.invoke(global).await?,
-            ProfileCommand::Show(args) => args.invoke(global).await?,
+            ProfileCommand::Add(args) => args.invoke(context).await?,
+            ProfileCommand::List(args) => args.invoke(context).await?,
+            ProfileCommand::Use(args) => args.invoke(context).await?,
+            ProfileCommand::Remove(args) => args.invoke(context).await?,
+            ProfileCommand::Show(args) => args.invoke(context).await?,
         }
         Ok(())
     }

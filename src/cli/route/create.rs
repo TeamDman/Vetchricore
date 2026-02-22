@@ -1,7 +1,7 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::app_state::LocalRouteIdentity;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::route::listen::listen_on_named_route;
 use crate::cli::veilid_runtime::printing_update_callback;
 use crate::cli::veilid_runtime::start_api_for_profile;
@@ -23,9 +23,9 @@ pub struct RouteCreateArgs {
 }
 
 impl RouteCreateArgs {
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
-        if app_state::local_route_identity(&profile, &self.name)?.is_some() {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let profile_home = context.profile_home();
+        if app_state::local_route_identity(profile_home, &self.name)?.is_some() {
             bail!(
                 "Route '{}' already exists. Use 'vetchricore route listen {}' to reuse it.",
                 self.name,
@@ -33,7 +33,8 @@ impl RouteCreateArgs {
             );
         }
 
-        let api = start_api_for_profile(&profile, false, printing_update_callback(false)).await?;
+        let api =
+            start_api_for_profile(profile_home, false, printing_update_callback(false)).await?;
         let crypto = api.crypto()?;
         let vcrypto = crypto
             .get_async(CRYPTO_KIND_VLD0)
@@ -54,7 +55,7 @@ impl RouteCreateArgs {
             record_key,
         };
         app_state::add_local_route_identity(
-            &profile,
+            profile_home,
             &identity.name,
             &identity.keypair,
             &identity.record_key,
@@ -62,11 +63,13 @@ impl RouteCreateArgs {
 
         println!(
             "Created route identity '{}' with record key {} for {}",
-            self.name, identity.record_key, profile
+            self.name,
+            identity.record_key,
+            profile_home.profile()
         );
 
         if self.listen {
-            listen_on_named_route(global, &self.name, None).await?;
+            listen_on_named_route(context, &self.name, None).await?;
         }
 
         Ok(())

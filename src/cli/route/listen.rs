@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -33,11 +33,11 @@ impl RouteListenArgs {
     /// # Errors
     ///
     /// Returns an error if the route is not found or listening fails.
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         if matches!(self.count, Some(0)) {
             bail!("--count must be greater than 0.");
         }
-        listen_on_named_route(global, &self.name, self.count).await
+        listen_on_named_route(context, &self.name, self.count).await
     }
 }
 
@@ -48,22 +48,23 @@ impl RouteListenArgs {
 /// Returns an error if the profile/route identity cannot be loaded,
 /// attachment readiness is not reached, or Veilid operations fail.
 pub async fn listen_on_named_route(
-    global: &GlobalArgs,
+    context: &InvokeContext,
     route_name: &str,
     message_count_limit: Option<usize>,
 ) -> Result<()> {
-    let profile = app_state::resolve_profile(global)?;
-    let mut identity = app_state::local_route_identity(&profile, route_name)?.ok_or_else(|| {
-        eyre::eyre!(
-            "Route '{}' does not exist. Create it with 'vetchricore route create {} --listen'.",
-            route_name,
-            route_name
-        )
-    })?;
+    let profile_home = context.profile_home();
+    let mut identity =
+        app_state::local_route_identity(profile_home, route_name)?.ok_or_else(|| {
+            eyre::eyre!(
+                "Route '{}' does not exist. Create it with 'vetchricore route create {} --listen'.",
+                route_name,
+                route_name
+            )
+        })?;
 
     let public_internet_ready = Arc::new(AtomicBool::new(false));
     let friend_map = Arc::new(Mutex::new(
-        app_state::list_friends(&profile)?
+        app_state::list_friends(profile_home)?
             .into_iter()
             .map(|f| (f.pubkey.to_string(), f.name))
             .collect::<std::collections::HashMap<_, _>>(),
@@ -77,7 +78,7 @@ pub async fn listen_on_named_route(
         Arc::clone(&printed_messages),
     );
 
-    let api = start_api_for_profile(&profile, true, callback).await?;
+    let api = start_api_for_profile(profile_home, true, callback).await?;
     wait_for_public_internet_ready(&api, &public_internet_ready).await?;
 
     let router = api.routing_context()?.with_default_safety()?;
@@ -95,9 +96,9 @@ pub async fn listen_on_named_route(
             .await?;
         let created_record_key = descriptor.key();
         if created_record_key != identity.record_key {
-            app_state::remove_local_route_identity(&profile, &identity.name)?;
+            app_state::remove_local_route_identity(profile_home, &identity.name)?;
             app_state::add_local_route_identity(
-                &profile,
+                profile_home,
                 &identity.name,
                 &identity.keypair,
                 &created_record_key,
@@ -118,7 +119,8 @@ pub async fn listen_on_named_route(
 
     println!(
         "Created route information and stored it under record key {} for {}",
-        identity.record_key, profile
+        identity.record_key,
+        profile_home.profile()
     );
     println!("Listening for messages.");
 
@@ -233,7 +235,7 @@ async fn wait_for_public_internet_ready(
 
 impl ToArgs for RouteListenArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
-        let mut args = vec![self.name.clone().into()];
+        let mut args: Vec<std::ffi::OsString> = vec![self.name.clone().into()];
         if let Some(count) = self.count {
             args.push("--count".into());
             args.push(count.to_string().into());

@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::profile::details::print_detailed_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -18,13 +18,13 @@ impl ProfileShowArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let profile_home = context.profile_home();
         if self.detailed {
-            let active = app_state::current_active_profile()?;
-            print_detailed_profile(&profile, profile == active)?;
+            let active = app_state::current_active_profile(context.app_home())?;
+            print_detailed_profile(profile_home, profile_home.profile() == active)?;
         } else {
-            println!("You are using {profile}.");
+            println!("You are using {}.", profile_home.profile());
         }
         Ok(())
     }

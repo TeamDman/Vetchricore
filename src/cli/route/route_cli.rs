@@ -1,5 +1,5 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::route::create::RouteCreateArgs;
 use crate::cli::route::list::RouteListArgs;
 use crate::cli::route::listen::RouteListenArgs;
@@ -31,13 +31,13 @@ impl RouteArgs {
     /// # Errors
     ///
     /// Returns an error if the selected route subcommand fails.
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         match self.command {
-            RouteCommand::Create(args) => args.invoke(global).await?,
-            RouteCommand::Listen(args) => args.invoke(global).await?,
-            RouteCommand::List(args) => args.invoke(global).await?,
-            RouteCommand::Show(args) => args.invoke(global).await?,
-            RouteCommand::Remove(args) => args.invoke(global).await?,
+            RouteCommand::Create(args) => args.invoke(context).await?,
+            RouteCommand::Listen(args) => args.invoke(context).await?,
+            RouteCommand::List(args) => args.invoke(context).await?,
+            RouteCommand::Show(args) => args.invoke(context).await?,
+            RouteCommand::Remove(args) => args.invoke(context).await?,
         }
         Ok(())
     }

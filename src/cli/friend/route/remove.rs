@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -21,21 +21,21 @@ impl FriendRouteRemoveArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         let record_key = self
             .record_id
             .as_ref()
             .map(|value| value.parse::<RecordKey>())
             .transpose()?;
 
-        let matches = app_state::list_friend_route_keys(&profile, self.friend.as_deref())?
-            .into_iter()
-            .filter(|entry| match &record_key {
-                Some(target_key) => entry.record_key == *target_key,
-                None => true,
-            })
-            .collect::<Vec<_>>();
+        let matches =
+            app_state::list_friend_route_keys(context.profile_home(), self.friend.as_deref())?
+                .into_iter()
+                .filter(|entry| match &record_key {
+                    Some(target_key) => entry.record_key == *target_key,
+                    None => true,
+                })
+                .collect::<Vec<_>>();
 
         if matches.is_empty() {
             println!("No matching friend routes found.");
@@ -58,7 +58,7 @@ impl FriendRouteRemoveArgs {
         }
 
         let removed = app_state::remove_friend_route_keys(
-            &profile,
+            context.profile_home(),
             self.friend.as_deref(),
             record_key.as_ref(),
         )?;

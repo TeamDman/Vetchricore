@@ -13,6 +13,10 @@ use crate::cli::key::KeyArgs;
 use crate::cli::profile::ProfileArgs;
 use crate::cli::route::RouteArgs;
 use crate::cli::send::SendArgs;
+use crate::paths::APP_HOME;
+use crate::paths::AppHome;
+use crate::paths::CACHE_DIR;
+use crate::paths::CacheHome;
 use arbitrary::Arbitrary;
 use eyre::Context;
 use facet::Facet;
@@ -25,6 +29,51 @@ pub trait ToArgs {
     /// Convert the CLI structure to command line arguments.
     fn to_args(&self) -> Vec<OsString> {
         Vec::new()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct InvokeContext {
+    app_home: AppHome,
+    cache_home: CacheHome,
+    profile_home: app_state::ProfileHome,
+}
+
+impl InvokeContext {
+    /// # Errors
+    ///
+    /// Returns an error if profile/home resolution fails.
+    pub fn resolve(global: &GlobalArgs) -> eyre::Result<Self> {
+        let app_home = global
+            .home_dir
+            .as_ref()
+            .map_or_else(|| APP_HOME.clone(), |path| AppHome(path.clone()));
+        let cache_home = global
+            .cache_dir
+            .as_ref()
+            .map_or_else(|| CACHE_DIR.clone(), |path| CacheHome(path.clone()));
+        let profile_home = app_state::resolve_profile_home(&app_home, global.profile.as_deref())?;
+
+        Ok(Self {
+            app_home,
+            cache_home,
+            profile_home,
+        })
+    }
+
+    #[must_use]
+    pub fn app_home(&self) -> &AppHome {
+        &self.app_home
+    }
+
+    #[must_use]
+    pub fn cache_home(&self) -> &CacheHome {
+        &self.cache_home
+    }
+
+    #[must_use]
+    pub fn profile_home(&self) -> &app_state::ProfileHome {
+        &self.profile_home
     }
 }
 
@@ -64,11 +113,12 @@ impl Cli {
     ///
     /// This function will return an error if the tokio runtime cannot be built or if the command fails.
     pub fn invoke(self) -> eyre::Result<()> {
+        let context = InvokeContext::resolve(&self.global)?;
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .wrap_err("Failed to build tokio runtime")?;
-        runtime.block_on(async move { self.command.invoke(&self.global).await })?;
+        runtime.block_on(async move { self.command.invoke(&context).await })?;
         Ok(())
     }
 }
@@ -102,13 +152,13 @@ impl Command {
     /// # Errors
     ///
     /// This function will return an error if the subcommand fails.
-    pub async fn invoke(self, global: &GlobalArgs) -> eyre::Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> eyre::Result<()> {
         match self {
-            Command::Profile(args) => args.invoke(global).await,
-            Command::Friend(args) => args.invoke(global).await,
-            Command::Key(args) => args.invoke(global).await,
-            Command::Route(args) => args.invoke(global).await,
-            Command::Send(args) => args.invoke(global).await,
+            Command::Profile(args) => args.invoke(context).await,
+            Command::Friend(args) => args.invoke(context).await,
+            Command::Key(args) => args.invoke(context).await,
+            Command::Route(args) => args.invoke(context).await,
+            Command::Send(args) => args.invoke(context).await,
         }
     }
 }

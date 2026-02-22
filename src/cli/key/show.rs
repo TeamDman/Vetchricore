@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use crate::cli::key::key_gen::KeyGenArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -15,10 +15,10 @@ pub struct KeyShowArgs {
 }
 
 impl KeyShowArgs {
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let profile_home = context.profile_home();
 
-        let keypair = if let Some(keypair) = app_state::load_keypair(&profile)? {
+        let keypair = if let Some(keypair) = app_state::load_keypair(profile_home)? {
             keypair
         } else {
             let mut stdout = std::io::stdout();
@@ -32,8 +32,8 @@ impl KeyShowArgs {
             if answer.trim().eq_ignore_ascii_case("n") {
                 return Ok(());
             }
-            KeyGenArgs.invoke(global).await?;
-            app_state::load_keypair(&profile)?
+            KeyGenArgs.invoke(context).await?;
+            app_state::load_keypair(profile_home)?
                 .ok_or_else(|| eyre::eyre!("Key generation failed"))?
         };
 

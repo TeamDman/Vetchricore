@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -20,10 +20,10 @@ impl FriendAddArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let profile_home = context.profile_home();
         let pubkey = self.pubkey.parse::<PublicKey>()?;
-        app_state::add_friend(&profile, &self.name, pubkey)?;
+        app_state::add_friend(profile_home, &self.name, pubkey)?;
         println!("You have added {} as a friend.", self.name);
         Ok(())
     }

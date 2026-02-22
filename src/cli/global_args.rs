@@ -18,6 +18,14 @@ pub struct GlobalArgs {
     #[facet(args::named)]
     pub profile: Option<String>,
 
+    /// Override the app home directory for this command invocation.
+    #[facet(args::named)]
+    pub home_dir: Option<PathBuf>,
+
+    /// Override the app cache directory for this command invocation.
+    #[facet(args::named)]
+    pub cache_dir: Option<PathBuf>,
+
     /// Enable debug logging, including backtraces on panics.
     #[facet(args::named, default)]
     pub debug: bool,
@@ -70,6 +78,14 @@ impl ToArgs for GlobalArgs {
         if let Some(profile) = &self.profile {
             args.push("--profile".into());
             args.push(profile.into());
+        }
+        if let Some(path) = &self.home_dir {
+            args.push("--home-dir".into());
+            args.push(path.as_os_str().into());
+        }
+        if let Some(path) = &self.cache_dir {
+            args.push("--cache-dir".into());
+            args.push(path.as_os_str().into());
         }
         if self.debug {
             args.push("--debug".into());

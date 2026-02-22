@@ -51,8 +51,8 @@ impl std::ops::Deref for CacheHome {
 /// # Errors
 ///
 /// This function will return an error if removing files or directories fails.
-pub fn clean_cache() -> eyre::Result<CleanResult> {
-    let cache_dir = CACHE_DIR.0.as_path();
+pub fn clean_cache(cache_home: &CacheHome) -> eyre::Result<CleanResult> {
+    let cache_dir = cache_home.0.as_path();
     let mut result = CleanResult::default();
 
     if !cache_dir.exists() {

@@ -1,6 +1,6 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -17,9 +17,9 @@ impl FriendRouteListArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        let profile = app_state::resolve_profile(global)?;
-        let routes = app_state::list_friend_route_keys(&profile, self.friend.as_deref())?;
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+        let routes =
+            app_state::list_friend_route_keys(context.profile_home(), self.friend.as_deref())?;
 
         if routes.is_empty() {
             println!("No friend routes have been added.");

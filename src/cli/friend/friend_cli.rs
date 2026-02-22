@@ -1,10 +1,10 @@
+use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::friend::add::FriendAddArgs;
 use crate::cli::friend::list::FriendListArgs;
 use crate::cli::friend::remove::FriendRemoveArgs;
 use crate::cli::friend::rename::FriendRenameArgs;
 use crate::cli::friend::route::FriendRouteArgs;
-use crate::cli::global_args::GlobalArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -31,13 +31,13 @@ impl FriendArgs {
     /// # Errors
     ///
     /// Returns an error if the selected friend subcommand fails.
-    pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         match self.command {
-            FriendCommand::List(args) => args.invoke(global).await?,
-            FriendCommand::Add(args) => args.invoke(global).await?,
-            FriendCommand::Rename(args) => args.invoke(global).await?,
-            FriendCommand::Remove(args) => args.invoke(global).await?,
-            FriendCommand::Route(args) => args.invoke(global).await?,
+            FriendCommand::List(args) => args.invoke(context).await?,
+            FriendCommand::Add(args) => args.invoke(context).await?,
+            FriendCommand::Rename(args) => args.invoke(context).await?,
+            FriendCommand::Remove(args) => args.invoke(context).await?,
+            FriendCommand::Route(args) => args.invoke(context).await?,
         }
         Ok(())
     }
