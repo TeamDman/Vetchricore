@@ -42,7 +42,7 @@ impl RouteListenArgs {
 /// attachment readiness is not reached, or Veilid operations fail.
 pub async fn listen_on_named_route(global: &GlobalArgs, route_name: &str) -> Result<()> {
     let profile = app_state::resolve_profile(global)?;
-    let identity = app_state::local_route_identity(&profile, route_name)?.ok_or_else(|| {
+    let mut identity = app_state::local_route_identity(&profile, route_name)?.ok_or_else(|| {
         eyre::eyre!(
             "Route '{}' does not exist. Create it with 'vetchricore route create {} --listen'.",
             route_name,
@@ -73,13 +73,24 @@ pub async fn listen_on_named_route(global: &GlobalArgs, route_name: &str) -> Res
         .await
         .is_err()
     {
-        let _ = router
+        let descriptor = router
             .create_dht_record(
                 CRYPTO_KIND_VLD0,
                 DHTSchema::dflt(1)?,
                 Some(identity.keypair.clone()),
             )
             .await?;
+        let created_record_key = descriptor.key();
+        if created_record_key != identity.record_key {
+            app_state::remove_local_route_identity(&profile, &identity.name)?;
+            app_state::add_local_route_identity(
+                &profile,
+                &identity.name,
+                &identity.keypair,
+                &created_record_key,
+            )?;
+            identity.record_key = created_record_key;
+        }
     }
 
     let mut route_blob = api.new_private_route().await?;

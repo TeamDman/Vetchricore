@@ -39,8 +39,12 @@ impl RouteCreateArgs {
             .get_async(CRYPTO_KIND_VLD0)
             .ok_or_else(|| eyre::eyre!("VLD0 cryptosystem unavailable"))?;
         let route_keypair = vcrypto.generate_keypair().await;
-        let record_key =
-            api.get_dht_record_key(DHTSchema::dflt(1)?, route_keypair.key().clone(), None)?;
+        let record_encryption_key = vcrypto.random_shared_secret().await;
+        let record_key = api.get_dht_record_key(
+            DHTSchema::dflt(1)?,
+            route_keypair.key().clone(),
+            Some(record_encryption_key),
+        )?;
 
         api.shutdown().await;
 
