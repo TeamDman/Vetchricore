@@ -15,6 +15,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
+use veilid_core::RouteBlob;
 use veilid_core::CRYPTO_KIND_VLD0;
 use veilid_core::DHTSchema;
 use veilid_core::RouteId;
@@ -28,6 +29,9 @@ pub struct RouteListenArgs {
     #[facet(args::named)]
     pub count: Option<usize>,
 }
+
+const ROUTE_ALLOCATE_MAX_ATTEMPTS: usize = 20;
+const ROUTE_ALLOCATE_RETRY_DELAY: Duration = Duration::from_secs(1);
 
 impl RouteListenArgs {
     /// # Errors
@@ -53,7 +57,7 @@ pub async fn listen_on_named_route(
     message_count_limit: Option<usize>,
 ) -> Result<()> {
     let profile_home = context.profile_home();
-    let mut identity =
+    let identity =
         app_state::local_route_identity(profile_home, route_name)?.ok_or_else(|| {
             eyre::eyre!(
                 "Route '{}' does not exist. Create it with 'vetchricore route create {} --listen'.",
@@ -87,27 +91,21 @@ pub async fn listen_on_named_route(
         .await
         .is_err()
     {
-        let descriptor = router
+        let _ = router
             .create_dht_record(
                 CRYPTO_KIND_VLD0,
                 DHTSchema::dflt(1)?,
                 Some(identity.keypair.clone()),
             )
             .await?;
-        let created_record_key = descriptor.key();
-        if created_record_key != identity.record_key {
-            app_state::remove_local_route_identity(profile_home, &identity.name)?;
-            app_state::add_local_route_identity(
-                profile_home,
-                &identity.name,
-                &identity.keypair,
-                &created_record_key,
-            )?;
-            identity.record_key = created_record_key;
-        }
     }
 
-    let mut route_blob = api.new_private_route().await?;
+    let mut route_blob = allocate_private_route_with_retry(
+        &api,
+        ROUTE_ALLOCATE_MAX_ATTEMPTS,
+        ROUTE_ALLOCATE_RETRY_DELAY,
+    )
+    .await?;
     router
         .set_dht_value(
             identity.record_key.clone(),
@@ -144,7 +142,12 @@ pub async fn listen_on_named_route(
                 };
 
                 if should_rotate {
-                    route_blob = api.new_private_route().await?;
+                    route_blob = allocate_private_route_with_retry(
+                        &api,
+                        ROUTE_ALLOCATE_MAX_ATTEMPTS,
+                        ROUTE_ALLOCATE_RETRY_DELAY,
+                    )
+                    .await?;
                     router
                         .set_dht_value(
                             identity.record_key.clone(),
@@ -174,9 +177,7 @@ fn route_update_callback(
 ) -> crate::cli::veilid_runtime::UpdateCallback {
     Arc::new(move |update: VeilidUpdate| match update {
         VeilidUpdate::Attachment(attachment) => {
-            if attachment.public_internet_ready {
-                public_internet_ready.store(true, Ordering::Release);
-            }
+            public_internet_ready.store(attachment.public_internet_ready, Ordering::Release);
         }
         VeilidUpdate::AppMessage(message) => {
             let text = String::from_utf8_lossy(message.message()).to_string();
@@ -231,6 +232,40 @@ async fn wait_for_public_internet_ready(
         }
     }
     Ok(())
+}
+
+async fn allocate_private_route_with_retry(
+    api: &veilid_core::VeilidAPI,
+    max_attempts: usize,
+    retry_delay: Duration,
+) -> Result<RouteBlob> {
+    for attempt in 1..=max_attempts {
+        match api.new_private_route().await {
+            Ok(route_blob) => return Ok(route_blob),
+            Err(error) => {
+                if is_try_again_route_allocation_error(&error) && attempt < max_attempts {
+                    println!(
+                        "Route allocation attempt {} of {} failed transiently; retrying in {}s...",
+                        attempt,
+                        max_attempts,
+                        retry_delay.as_secs()
+                    );
+                    tokio::time::sleep(retry_delay).await;
+                    continue;
+                }
+                return Err(error.into());
+            }
+        }
+    }
+
+    bail!("Unable to allocate private route after {} attempts.", max_attempts)
+}
+
+fn is_try_again_route_allocation_error(error: &veilid_core::VeilidAPIError) -> bool {
+    let text = error.to_string();
+    text.contains("TryAgain:")
+        && (text.contains("allocated route failed to test")
+            || text.contains("allocated route could not be tested"))
 }
 
 impl ToArgs for RouteListenArgs {

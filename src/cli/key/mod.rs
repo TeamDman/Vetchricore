@@ -1,6 +1,6 @@
 mod key_cli;
-mod key_gen;
-mod remove;
-mod show;
+pub(crate) mod key_gen;
+pub(crate) mod remove;
+pub(crate) mod show;
 
 pub use key_cli::*;

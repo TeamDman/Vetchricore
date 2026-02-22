@@ -5,6 +5,7 @@ pub mod key;
 pub mod profile;
 pub mod route;
 pub mod send;
+pub mod test;
 pub mod veilid_runtime;
 
 use crate::cli::friend::FriendArgs;
@@ -13,6 +14,7 @@ use crate::cli::key::KeyArgs;
 use crate::cli::profile::ProfileArgs;
 use crate::cli::route::RouteArgs;
 use crate::cli::send::SendArgs;
+use crate::cli::test::TestArgs;
 use crate::paths::APP_HOME;
 use crate::paths::AppHome;
 use crate::paths::CACHE_DIR;
@@ -146,6 +148,8 @@ pub enum Command {
     Route(RouteArgs),
     /// Sending commands.
     Send(SendArgs),
+    /// Test utility commands.
+    Test(TestArgs),
 }
 
 impl Command {
@@ -159,6 +163,7 @@ impl Command {
             Command::Key(args) => args.invoke(context).await,
             Command::Route(args) => args.invoke(context).await,
             Command::Send(args) => args.invoke(context).await,
+            Command::Test(args) => args.invoke(context).await,
         }
     }
 }
@@ -186,6 +191,10 @@ impl ToArgs for Command {
             Command::Send(send_args) => {
                 args.push("send".into());
                 args.extend(send_args.to_args());
+            }
+            Command::Test(test_args) => {
+                args.push("test".into());
+                args.extend(test_args.to_args());
             }
         }
         args

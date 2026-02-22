@@ -1,9 +1,9 @@
-mod add;
+pub(crate) mod add;
 mod details;
-mod list;
+pub(crate) mod list;
 mod profile_cli;
-mod remove;
-mod show;
-mod use_profile;
+pub(crate) mod remove;
+pub(crate) mod show;
+pub(crate) mod use_profile;
 
 pub use profile_cli::*;

@@ -1,8 +1,8 @@
-mod add;
+pub(crate) mod add;
 mod friend_cli;
-mod list;
-mod remove;
-mod rename;
-mod route;
+pub(crate) mod list;
+pub(crate) mod remove;
+pub(crate) mod rename;
+pub(crate) mod route;
 
 pub use friend_cli::*;

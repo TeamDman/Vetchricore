@@ -27,12 +27,19 @@ pub struct SendChatArgs {
     pub friend: String,
     #[facet(args::named)]
     pub message: Option<String>,
+    #[facet(args::named)]
+    pub retry: Option<usize>,
 }
 
 impl SendChatArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         if self.to != "to" {
-            bail!("Usage: send chat to <friend> [--message <text>]");
+            bail!("Usage: send chat to <friend> [--message <text>] [--retry <count>]");
+        }
+
+        let retry_attempts = self.retry.unwrap_or(1);
+        if retry_attempts == 0 {
+            bail!("--retry must be greater than 0.");
         }
 
         let profile_home = context.profile_home();
@@ -54,10 +61,8 @@ impl SendChatArgs {
         let callback = {
             let public_internet_ready = Arc::clone(&public_internet_ready);
             Arc::new(move |update: VeilidUpdate| {
-                if let VeilidUpdate::Attachment(attachment) = update
-                    && attachment.public_internet_ready
-                {
-                    public_internet_ready.store(true, Ordering::Release);
+                if let VeilidUpdate::Attachment(attachment) = update {
+                    public_internet_ready.store(attachment.public_internet_ready, Ordering::Release);
                 }
             }) as crate::cli::veilid_runtime::UpdateCallback
         };
@@ -87,12 +92,16 @@ impl SendChatArgs {
 
         let router = api.routing_context()?.with_default_safety()?;
 
-        let mut route_id = acquire_best_route(&api, &router, &keys).await?;
-
         if let Some(message) = self.message {
             let payload = format!("{}|{}", my_keypair.key(), message);
-            send_payload_with_retry(&api, &router, &keys, &mut route_id, payload.into_bytes())
-                .await?;
+            send_payload_with_key_not_found_retry(
+                &api,
+                &router,
+                &keys,
+                payload.into_bytes(),
+                retry_attempts,
+            )
+            .await?;
             println!("Message sent.");
         } else {
             loop {
@@ -117,14 +126,19 @@ impl SendChatArgs {
                             continue;
                         }
                         let payload = format!("{}|{}", my_keypair.key(), text);
-                        send_payload_with_retry(&api, &router, &keys, &mut route_id, payload.into_bytes())
-                            .await?;
+                        send_payload_with_key_not_found_retry(
+                            &api,
+                            &router,
+                            &keys,
+                            payload.into_bytes(),
+                            retry_attempts,
+                        )
+                        .await?;
                     }
                 }
             }
         }
 
-        let _ = api.release_private_route(route_id);
         api.shutdown().await;
         let _ = friend_key;
         Ok(())
@@ -169,28 +183,65 @@ async fn acquire_best_route(
     bail!("Unable to acquire a route from any configured record key.")
 }
 
-async fn send_payload_with_retry(
+async fn send_payload_with_key_not_found_retry(
     api: &veilid_core::VeilidAPI,
     router: &veilid_core::RoutingContext,
     keys: &[RecordKey],
-    route_id: &mut RouteId,
     payload: Vec<u8>,
+    max_attempts: usize,
 ) -> Result<()> {
-    let first_try = router
-        .app_message(Target::RouteId(route_id.clone()), payload.clone())
-        .await;
-    if first_try.is_ok() {
-        return Ok(());
+    for attempt in 1..=max_attempts {
+        println!("Send attempt {} of {}.", attempt, max_attempts);
+
+        let route_id = match acquire_best_route(api, router, keys).await {
+            Ok(route_id) => route_id,
+            Err(error) => {
+                if should_retry_key_not_found(&error) && attempt < max_attempts {
+                    println!(
+                        "Route record key not found; retrying in 1s (attempt {} of {}).",
+                        attempt,
+                        max_attempts
+                    );
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+                return Err(error);
+            }
+        };
+
+        let send_result = router
+            .app_message(Target::RouteId(route_id.clone()), payload.clone())
+            .await;
+        let _ = api.release_private_route(route_id);
+
+        match send_result {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                let error = eyre::Report::from(error);
+                if should_retry_key_not_found(&error) && attempt < max_attempts {
+                    println!(
+                        "Route record key not found; retrying in 1s (attempt {} of {}).",
+                        attempt,
+                        max_attempts
+                    );
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+                return Err(error);
+            }
+        }
     }
 
-    println!("Route send failed; reacquiring route information and retrying...");
-    let _ = api.release_private_route(route_id.clone());
-    *route_id = acquire_best_route(api, router, keys).await?;
+    bail!(
+        "Unable to send message after {} attempts because route record keys remained unavailable.",
+        max_attempts
+    )
+}
 
-    router
-        .app_message(Target::RouteId(route_id.clone()), payload)
-        .await?;
-    Ok(())
+fn should_retry_key_not_found(error: &eyre::Report) -> bool {
+    error
+        .chain()
+        .any(|cause| cause.to_string().contains("Key not found"))
 }
 
 impl ToArgs for SendChatArgs {
@@ -199,6 +250,10 @@ impl ToArgs for SendChatArgs {
         if let Some(message) = &self.message {
             args.push("--message".into());
             args.push(message.clone().into());
+        }
+        if let Some(retry) = self.retry {
+            args.push("--retry".into());
+            args.push(retry.to_string().into());
         }
         args
     }
