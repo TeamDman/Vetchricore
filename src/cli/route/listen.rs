@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
@@ -23,6 +24,9 @@ use veilid_core::VeilidUpdate;
 pub struct RouteListenArgs {
     #[facet(args::positional)]
     pub name: String,
+
+    #[facet(args::named)]
+    pub count: Option<usize>,
 }
 
 impl RouteListenArgs {
@@ -30,7 +34,10 @@ impl RouteListenArgs {
     ///
     /// Returns an error if the route is not found or listening fails.
     pub async fn invoke(self, global: &GlobalArgs) -> Result<()> {
-        listen_on_named_route(global, &self.name).await
+        if matches!(self.count, Some(0)) {
+            bail!("--count must be greater than 0.");
+        }
+        listen_on_named_route(global, &self.name, self.count).await
     }
 }
 
@@ -40,7 +47,11 @@ impl RouteListenArgs {
 ///
 /// Returns an error if the profile/route identity cannot be loaded,
 /// attachment readiness is not reached, or Veilid operations fail.
-pub async fn listen_on_named_route(global: &GlobalArgs, route_name: &str) -> Result<()> {
+pub async fn listen_on_named_route(
+    global: &GlobalArgs,
+    route_name: &str,
+    message_count_limit: Option<usize>,
+) -> Result<()> {
     let profile = app_state::resolve_profile(global)?;
     let mut identity = app_state::local_route_identity(&profile, route_name)?.ok_or_else(|| {
         eyre::eyre!(
@@ -58,10 +69,12 @@ pub async fn listen_on_named_route(global: &GlobalArgs, route_name: &str) -> Res
             .collect::<std::collections::HashMap<_, _>>(),
     ));
     let dead_routes = Arc::new(Mutex::new(HashSet::<RouteId>::new()));
+    let printed_messages = Arc::new(AtomicUsize::new(0));
     let callback = route_update_callback(
         Arc::clone(&public_internet_ready),
         Arc::clone(&friend_map),
         Arc::clone(&dead_routes),
+        Arc::clone(&printed_messages),
     );
 
     let api = start_api_for_profile(&profile, true, callback).await?;
@@ -110,6 +123,12 @@ pub async fn listen_on_named_route(global: &GlobalArgs, route_name: &str) -> Res
     println!("Listening for messages.");
 
     loop {
+        if let Some(limit) = message_count_limit
+            && printed_messages.load(Ordering::Acquire) >= limit
+        {
+            break;
+        }
+
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
                 break;
@@ -149,6 +168,7 @@ fn route_update_callback(
     public_internet_ready: Arc<AtomicBool>,
     friend_map: Arc<Mutex<std::collections::HashMap<String, String>>>,
     dead_routes: Arc<Mutex<HashSet<RouteId>>>,
+    printed_messages: Arc<AtomicUsize>,
 ) -> crate::cli::veilid_runtime::UpdateCallback {
     Arc::new(move |update: VeilidUpdate| match update {
         VeilidUpdate::Attachment(attachment) => {
@@ -171,6 +191,7 @@ fn route_update_callback(
             } else {
                 println!("INCOMING> {text}");
             }
+            printed_messages.fetch_add(1, Ordering::AcqRel);
         }
         VeilidUpdate::RouteChange(change) => {
             if let Ok(mut guard) = dead_routes.lock() {
@@ -212,6 +233,11 @@ async fn wait_for_public_internet_ready(
 
 impl ToArgs for RouteListenArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
-        vec![self.name.clone().into()]
+        let mut args = vec![self.name.clone().into()];
+        if let Some(count) = self.count {
+            args.push("--count".into());
+            args.push(count.to_string().into());
+        }
+        args
     }
 }

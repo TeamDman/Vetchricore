@@ -66,7 +66,7 @@ impl RouteCreateArgs {
         );
 
         if self.listen {
-            listen_on_named_route(global, &self.name).await?;
+            listen_on_named_route(global, &self.name, None).await?;
         }
 
         Ok(())
