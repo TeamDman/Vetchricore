@@ -134,10 +134,15 @@ pub fn remove_profile(name: &str) -> Result<()> {
 
     let active = current_active_profile()?;
     if active == name {
-        if list_profiles()?.is_empty() {
+        let profiles = list_profiles()?;
+        if profiles.is_empty() {
             create_profile("main")?;
+            set_active_profile("main")?;
+        } else if profiles.iter().any(|profile| profile == "main") {
+            set_active_profile("main")?;
+        } else {
+            set_active_profile(&profiles[0])?;
         }
-        set_active_profile("main")?;
     }
 
     Ok(())
@@ -172,7 +177,25 @@ pub fn current_active_profile() -> Result<String> {
     if name.is_empty() {
         bail!("Active profile is empty.");
     }
-    Ok(name.to_owned())
+
+    if profile_dir(name).exists() {
+        return Ok(name.to_owned());
+    }
+
+    let profiles = list_profiles()?;
+    if profiles.is_empty() {
+        create_profile("main")?;
+        set_active_profile("main")?;
+        return Ok("main".to_owned());
+    }
+
+    let fallback = profiles
+        .iter()
+        .find(|profile| profile.as_str() == "main")
+        .cloned()
+        .unwrap_or_else(|| profiles[0].clone());
+    set_active_profile(&fallback)?;
+    Ok(fallback)
 }
 
 /// Load a profile's keypair from disk.
