@@ -14,6 +14,10 @@ use tracing::level_filters::LevelFilter;
 /// Global arguments that apply to all commands.
 #[derive(Facet, Arbitrary, Debug, Default, PartialEq)]
 pub struct GlobalArgs {
+    /// Profile override to use for this command invocation.
+    #[facet(args::named)]
+    pub profile: Option<String>,
+
     /// Enable debug logging, including backtraces on panics.
     #[facet(args::named, default)]
     pub debug: bool,
@@ -63,6 +67,10 @@ impl GlobalArgs {
 impl ToArgs for GlobalArgs {
     fn to_args(&self) -> Vec<OsString> {
         let mut args = Vec::new();
+        if let Some(profile) = &self.profile {
+            args.push("--profile".into());
+            args.push(profile.into());
+        }
         if self.debug {
             args.push("--debug".into());
         }

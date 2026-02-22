@@ -6,29 +6,33 @@ Not an official Veilid project.
 
 ## Veilid chat commands
 
-`vetchricore veilid` now includes the same core command flow as `veilid-python-demo`:
+`vetchricore` now uses a profile-first command model:
 
-- `state` - start/attach/get-state/shutdown summary
-- `keygen` - generate and store your local keypair
-- `add-friend <name> <pubkey>` - store a friend's public key
-- `dump-keystore` - print your keypair + friend keys
-- `delete-keystore` - delete local keystore table
-- `start <name>` - create a chat DHT key and begin chatting
-- `respond <name> <record-key>` - join an existing chat key
-- `clean <record-key>` - delete a DHT record key
+- Global `--profile <name>` override for all commands.
+- `profile add|list|use|remove|show`
+- `friend list|add <name> <pubkey>|rename <old> <new>|remove <name>`
+- `key gen|show [--reveal]|remove`
+- `route create [--listen]`
+- `route add --friend <name> --record-key <key>`
+- `send chat to <friend> [--message <text>]`
 
 ### Quick usage
 
 ```powershell
-# Generate your local keypair
-vetchricore veilid keygen
+# Create and switch profiles
+vetchricore profile add profile2
+vetchricore profile use profile2
+
+# Generate your local keypair for the active profile
+vetchricore key gen
 
 # Add a friend
-vetchricore veilid add-friend friend1 VLD0:...
+vetchricore friend add friend1 VLD0:...
 
-# Start a chat (share the generated key)
-vetchricore veilid start friend1
+# Start listening by publishing a private-route blob under a DHT record key
+vetchricore route create --listen
 
-# Respond to a shared key
-vetchricore veilid respond friend1 VLD0:...
+# Register one of friend1's route record keys then send a message
+vetchricore route add --friend friend1 --record-key VLD0:...
+vetchricore send chat to friend1 --message "hello"
 ```
