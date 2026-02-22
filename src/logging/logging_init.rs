@@ -59,12 +59,13 @@ pub fn init_logging(config: &LoggingConfig) -> eyre::Result<()> {
 
         let json_format = tracing_subscriber::fmt::format().json();
         let show_veilid_internal_logs_for_json = config.show_veilid_internal_logs;
-        let veilid_log_key_filter_for_json = tracing_subscriber::filter::filter_fn(move |metadata| {
-            let has_veilid_log_key = metadata.fields().field("__VEILID_LOG_KEY").is_some();
-            let is_veilid_target = metadata.target().starts_with("veilid_core")
-                || metadata.target().starts_with("veilid_tools");
-            show_veilid_internal_logs_for_json || (!has_veilid_log_key && !is_veilid_target)
-        });
+        let veilid_log_key_filter_for_json =
+            tracing_subscriber::filter::filter_fn(move |metadata| {
+                let has_veilid_log_key = metadata.fields().field("__VEILID_LOG_KEY").is_some();
+                let is_veilid_target = metadata.target().starts_with("veilid_core")
+                    || metadata.target().starts_with("veilid_tools");
+                show_veilid_internal_logs_for_json || (!has_veilid_log_key && !is_veilid_target)
+            });
 
         let json_layer = tracing_subscriber::fmt::layer()
             .event_format(json_format)
