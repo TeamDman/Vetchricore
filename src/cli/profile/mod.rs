@@ -1,4 +1,5 @@
 mod add;
+mod details;
 mod list;
 mod profile_cli;
 mod remove;

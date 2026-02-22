@@ -1,12 +1,17 @@
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::global_args::GlobalArgs;
+use crate::cli::profile::details::print_detailed_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
+use figue as args;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
-pub struct ProfileListArgs;
+pub struct ProfileListArgs {
+    #[facet(args::named, default)]
+    pub detailed: bool,
+}
 
 impl ProfileListArgs {
     #[expect(
@@ -17,7 +22,10 @@ impl ProfileListArgs {
         app_state::ensure_initialized()?;
         let active = app_state::current_active_profile()?;
         for profile in app_state::list_profiles()? {
-            if profile == active {
+            if self.detailed {
+                print_detailed_profile(&profile, profile == active)?;
+                println!();
+            } else if profile == active {
                 println!("{profile} (active)");
             } else {
                 println!("{profile}");
@@ -27,4 +35,12 @@ impl ProfileListArgs {
     }
 }
 
-impl ToArgs for ProfileListArgs {}
+impl ToArgs for ProfileListArgs {
+    fn to_args(&self) -> Vec<std::ffi::OsString> {
+        if self.detailed {
+            vec!["--detailed".into()]
+        } else {
+            Vec::new()
+        }
+    }
+}
