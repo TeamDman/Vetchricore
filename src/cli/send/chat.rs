@@ -109,15 +109,17 @@ impl SendChatArgs {
         }
 
         let router = api.routing_context()?.with_default_safety()?;
+        let mut cached_route_id: Option<RouteId> = None;
 
         if let Some(message) = self.message {
             let payload = format!("{}|{}", my_keypair.key(), message);
-            send_payload_with_key_not_found_retry(
+            send_payload_with_route_retry(
                 &api,
                 &router,
                 &keys,
                 payload.into_bytes(),
                 retry_attempts,
+                &mut cached_route_id,
             )
             .await?;
             println!("Message sent.");
@@ -144,17 +146,22 @@ impl SendChatArgs {
                             continue;
                         }
                         let payload = format!("{}|{}", my_keypair.key(), text);
-                        send_payload_with_key_not_found_retry(
+                        send_payload_with_route_retry(
                             &api,
                             &router,
                             &keys,
                             payload.into_bytes(),
                             retry_attempts,
+                            &mut cached_route_id,
                         )
                         .await?;
                     }
                 }
             }
+        }
+
+        if let Some(route_id) = cached_route_id {
+            let _ = api.release_private_route(route_id);
         }
 
         api.shutdown().await;
@@ -201,46 +208,56 @@ async fn acquire_best_route(
     bail!("Unable to acquire a route from any configured record key.")
 }
 
-async fn send_payload_with_key_not_found_retry(
+async fn send_payload_with_route_retry(
     api: &veilid_core::VeilidAPI,
     router: &veilid_core::RoutingContext,
     keys: &[RecordKey],
     payload: Vec<u8>,
     max_attempts: usize,
+    cached_route_id: &mut Option<RouteId>,
 ) -> Result<()> {
     for attempt in 1..=max_attempts {
         println!("Send attempt {attempt} of {max_attempts}.");
 
-        let route_id = match acquire_best_route(api, router, keys).await {
-            Ok(route_id) => route_id,
-            Err(error) => {
-                if should_retry_key_not_found(&error) && attempt < max_attempts {
-                    println!(
-                        "Route record key not found; retrying in 1s (attempt {attempt} of {max_attempts})."
-                    );
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    continue;
+        if cached_route_id.is_none() {
+            let route_id = match acquire_best_route(api, router, keys).await {
+                Ok(route_id) => route_id,
+                Err(error) => {
+                    if should_retry_route_acquire(&error) && attempt < max_attempts {
+                        println!(
+                            "Route record key unavailable; retrying in 1s (attempt {attempt} of {max_attempts})."
+                        );
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        continue;
+                    }
+                    return Err(error);
                 }
-                return Err(error);
-            }
+            };
+            *cached_route_id = Some(route_id);
+        }
+
+        let Some(route_id) = cached_route_id.clone() else {
+            continue;
         };
 
-        let send_result = router
+        match router
             .app_message(Target::RouteId(route_id.clone()), payload.clone())
-            .await;
-        let _ = api.release_private_route(route_id);
-
-        match send_result {
+            .await
+        {
             Ok(()) => return Ok(()),
             Err(error) => {
                 let error = eyre::Report::from(error);
-                if should_retry_key_not_found(&error) && attempt < max_attempts {
-                    println!(
-                        "Route record key not found; retrying in 1s (attempt {attempt} of {max_attempts})."
-                    );
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    continue;
+                if should_reacquire_route_after_send_error(&error) {
+                    println!("Cached route appears stale; reacquiring route information.");
+                    let _ = api.release_private_route(route_id.clone());
+                    *cached_route_id = None;
+
+                    if attempt < max_attempts {
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        continue;
+                    }
                 }
+
                 return Err(error);
             }
         }
@@ -252,10 +269,19 @@ async fn send_payload_with_key_not_found_retry(
     )
 }
 
-fn should_retry_key_not_found(error: &eyre::Report) -> bool {
+fn should_retry_route_acquire(error: &eyre::Report) -> bool {
     error
         .chain()
         .any(|cause| cause.to_string().contains("Key not found"))
+}
+
+fn should_reacquire_route_after_send_error(error: &eyre::Report) -> bool {
+    error.chain().any(|cause| {
+        let text = cause.to_string();
+        text.contains("Route id does not exist")
+            || text.contains("private route could not be found")
+            || text.contains("Key not found")
+    })
 }
 
 impl ToArgs for SendChatArgs {

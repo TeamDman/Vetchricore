@@ -174,9 +174,13 @@ pub async fn listen_on_named_route(
         }
     }
 
+    let _ = router
+        .set_dht_value(identity.record_key.clone(), 0, Vec::new(), None)
+        .await;
+    println!("Stopped listening; route record marked offline (empty route data).");
+
     let _ = api.release_private_route(route_blob.route_id);
     let _ = router.close_dht_record(identity.record_key.clone()).await;
-    let _ = router.delete_dht_record(identity.record_key).await;
     api.shutdown().await;
     Ok(())
 }
@@ -219,7 +223,7 @@ fn route_update_callback(
     })
 }
 
-async fn wait_for_public_internet_ready(
+pub async fn wait_for_public_internet_ready(
     api: &veilid_core::VeilidAPI,
     public_internet_ready: &AtomicBool,
 ) -> Result<()> {

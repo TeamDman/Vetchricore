@@ -7,6 +7,7 @@ use crate::cli::route::RouteArgs;
 use crate::cli::route::RouteCommand;
 use crate::cli::route::listen::RouteListenArgs;
 use crate::cli::route::listen::listen_on_named_route;
+use crate::cli::route::listen::wait_for_public_internet_ready;
 use crate::cli::veilid_runtime::printing_update_callback;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
@@ -14,8 +15,12 @@ use eyre::Result;
 use eyre::bail;
 use facet::Facet;
 use figue as args;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use veilid_core::CRYPTO_KIND_VLD0;
 use veilid_core::DHTSchema;
+use veilid_core::VeilidUpdate;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
 pub struct RouteAddArgs {
@@ -76,6 +81,42 @@ impl RouteAddArgs {
             identity.record_key,
             profile_home.profile()
         );
+
+        let public_internet_ready = Arc::new(AtomicBool::new(false));
+        let callback = {
+            let public_internet_ready = Arc::clone(&public_internet_ready);
+            Arc::new(move |update: VeilidUpdate| {
+                if let VeilidUpdate::Attachment(attachment) = update {
+                    public_internet_ready.store(attachment.public_internet_ready, Ordering::Release);
+                }
+            }) as crate::cli::veilid_runtime::UpdateCallback
+        };
+
+        let api = start_api_for_profile(profile_home, true, callback).await?;
+        wait_for_public_internet_ready(&api, &public_internet_ready).await?;
+
+        let router = api.routing_context()?.with_default_safety()?;
+        if router
+            .open_dht_record(identity.record_key.clone(), Some(identity.keypair.clone()))
+            .await
+            .is_err()
+        {
+            let _ = router
+                .create_dht_record(
+                    CRYPTO_KIND_VLD0,
+                    DHTSchema::dflt(1)?,
+                    Some(identity.keypair.clone()),
+                )
+                .await?;
+        }
+
+        router
+            .set_dht_value(identity.record_key.clone(), 0, Vec::new(), None)
+            .await?;
+        let _ = router.close_dht_record(identity.record_key.clone()).await;
+        api.shutdown().await;
+
+        println!("Initialized route record in offline state (empty route data).");
 
         if self.listen {
             listen_on_named_route(context, &self.name, None).await?;
