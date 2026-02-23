@@ -177,7 +177,7 @@ impl MediaPlayerDetectNowArgs {
 
         output.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.path.cmp(&b.path)));
 
-        CliResponse::from_facet(MediaPlayerDetectNowResponse { output })
+        Ok(MediaPlayerDetectNowResponse { output }.into())
     }
 
     fn should_walk(&self) -> Result<bool> {
@@ -247,3 +247,4 @@ impl ToArgs for MediaPlayerDetectNowArgs {
         args
     }
 }
+

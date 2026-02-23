@@ -52,14 +52,15 @@ impl KeyShowArgs {
                 .ok_or_else(|| eyre::eyre!("Key generation failed"))?
         };
 
-        CliResponse::from_facet(KeyShowResponse {
+        Ok(KeyShowResponse {
             public_key: keypair.key().to_string(),
             private_key: if self.reveal {
                 keypair.secret().to_string()
             } else {
                 "this value is hidden".to_owned()
             },
-        })
+        }
+        .into())
     }
 }
 
@@ -72,3 +73,4 @@ impl ToArgs for KeyShowArgs {
         }
     }
 }
+

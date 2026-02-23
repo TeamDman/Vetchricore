@@ -106,10 +106,11 @@ impl MediaPlayerListArgs {
             "prepared media player list output"
         );
 
-        CliResponse::from_facet(MediaPlayerListResponse { views })
+        Ok(MediaPlayerListResponse { views }.into())
     }
 }
 
 impl ToArgs for MediaPlayerListArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> { Vec::new() }
 }
+

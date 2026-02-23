@@ -34,9 +34,10 @@ impl KeyRemoveArgs {
         let mut answer = String::new();
         std::io::stdin().read_line(&mut answer)?;
         if !answer.trim().eq_ignore_ascii_case("y") {
-            return CliResponse::from_facet(KeyRemoveResponse {
+            return Ok(KeyRemoveResponse {
                 message: "Aborted key removal.".to_owned(),
-            });
+            }
+            .into());
         }
 
         write!(
@@ -47,16 +48,19 @@ impl KeyRemoveArgs {
         answer.clear();
         std::io::stdin().read_line(&mut answer)?;
         if answer.trim() != "Yes, I'm sure." {
-            return CliResponse::from_facet(KeyRemoveResponse {
+            return Ok(KeyRemoveResponse {
                 message: "Aborted key removal.".to_owned(),
-            });
+            }
+            .into());
         }
 
         app_state::remove_keypair(context.profile_home())?;
-        CliResponse::from_facet(KeyRemoveResponse {
+        Ok(KeyRemoveResponse {
             message: "Key has been removed.".to_owned(),
-        })
+        }
+        .into())
     }
 }
 
 impl ToArgs for KeyRemoveArgs {}
+

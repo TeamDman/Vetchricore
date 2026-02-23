@@ -37,7 +37,7 @@ impl KnownUserAddArgs {
         let profile_home = context.profile_home();
         let pubkey = self.pubkey.parse::<PublicKey>()?;
         app_state::add_known_user(profile_home, &self.name, pubkey)?;
-        CliResponse::from_facet(KnownUserAddResponse { name: self.name })
+        Ok(KnownUserAddResponse { name: self.name }.into())
     }
 }
 
@@ -46,3 +46,4 @@ impl ToArgs for KnownUserAddArgs {
         vec![self.name.clone().into(), self.pubkey.clone().into()]
     }
 }
+

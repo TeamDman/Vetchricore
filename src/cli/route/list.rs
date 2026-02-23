@@ -53,8 +53,9 @@ impl RouteListArgs {
                 })
                 .collect(),
         };
-        CliResponse::from_facet(response)
+        Ok(response.into())
     }
 }
 
 impl ToArgs for RouteListArgs {}
+

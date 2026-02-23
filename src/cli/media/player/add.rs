@@ -46,10 +46,11 @@ impl MediaPlayerAddArgs {
             .wrap_err_with(|| format!("failed to canonicalize '{}'", self.path.display()))?;
 
         app_state::upsert_media_player(context.profile_home(), &key, &canonical_path)?;
-        CliResponse::from_facet(MediaPlayerAddResponse {
+        Ok(MediaPlayerAddResponse {
             key,
             configured_path: canonical_path.display().to_string(),
-        })
+        }
+        .into())
     }
 }
 
@@ -61,3 +62,4 @@ impl ToArgs for MediaPlayerAddArgs {
         ]
     }
 }
+

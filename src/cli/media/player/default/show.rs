@@ -46,12 +46,14 @@ impl MediaPlayerDefaultShowArgs {
         let configured_path =
             app_state::media_player(context.profile_home(), &key)?.map(|player| player.path);
 
-        CliResponse::from_facet(MediaPlayerDefaultShowResponse {
+        Ok(MediaPlayerDefaultShowResponse {
             name: display_name_for_key(&key),
             key,
             configured_path: configured_path.map(|path| path.display().to_string()),
-        })
+        }
+        .into())
     }
 }
 
 impl ToArgs for MediaPlayerDefaultShowArgs {}
+

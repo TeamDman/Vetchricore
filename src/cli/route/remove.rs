@@ -73,7 +73,7 @@ impl RouteRemoveArgs {
         api.shutdown().await;
 
         app_state::remove_local_route_identity(profile_home, &self.name)?;
-        CliResponse::from_facet(RouteRemoveResponse { name: self.name })
+        Ok(RouteRemoveResponse { name: self.name }.into())
     }
 }
 
@@ -108,3 +108,4 @@ impl ToArgs for RouteRemoveArgs {
         vec![self.name.clone().into()]
     }
 }
+

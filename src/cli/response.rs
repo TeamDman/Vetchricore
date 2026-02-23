@@ -5,25 +5,16 @@ use std::fmt::Display;
 
 #[derive(Default)]
 pub struct CliResponse {
-    body: CliResponseBody,
+    renderer: Option<Box<dyn DeferredRender>>,
 }
 
 impl std::fmt::Debug for CliResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.body {
-            CliResponseBody::Empty => f.write_str("CliResponse::Empty"),
-            CliResponseBody::Text(_) => f.write_str("CliResponse::Text(..)"),
-            CliResponseBody::Deferred(_) => f.write_str("CliResponse::Deferred(..)"),
+        match &self.renderer {
+            None => f.write_str("CliResponse::Empty"),
+            Some(_) => f.write_str("CliResponse::Value(..)"),
         }
     }
-}
-
-#[derive(Default)]
-enum CliResponseBody {
-    #[default]
-    Empty,
-    Text(Box<dyn Display>),
-    Deferred(Box<dyn DeferredRender>),
 }
 
 trait DeferredRender {
@@ -53,33 +44,22 @@ impl CliResponse {
         Self::default()
     }
 
-    pub fn from_facet<T>(value: T) -> Result<Self>
-    where
-        T: for<'a> Facet<'a> + Display + 'static,
-    {
-        Ok(Self {
-            body: CliResponseBody::Deferred(Box::new(FacetDeferredRender { value })),
-        })
-    }
-
-    #[must_use]
-    pub fn from_text(text: impl Display + 'static) -> Self {
-        Self {
-            body: CliResponseBody::Text(Box::new(text)),
-        }
-    }
-
     pub fn write(self, output_format: OutputFormat) -> Result<()> {
-        match self.body {
-            CliResponseBody::Empty => {}
-            CliResponseBody::Text(body) => {
-                println!("{body}");
-            }
-            CliResponseBody::Deferred(renderer) => {
-                let body = renderer.render(output_format)?;
-                println!("{body}");
-            }
+        if let Some(renderer) = self.renderer {
+            let body = renderer.render(output_format)?;
+            println!("{body}");
         }
         Ok(())
+    }
+}
+
+impl<T> From<T> for CliResponse
+where
+    T: for<'a> Facet<'a> + Display + 'static,
+{
+    fn from(value: T) -> Self {
+        Self {
+            renderer: Some(Box::new(FacetDeferredRender { value })),
+        }
     }
 }

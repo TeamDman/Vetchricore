@@ -35,10 +35,11 @@ impl KnownUserRenameArgs {
     )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         app_state::rename_known_user(context.profile_home(), &self.old_name, &self.new_name)?;
-        CliResponse::from_facet(KnownUserRenameResponse {
+        Ok(KnownUserRenameResponse {
             old_name: self.old_name,
             new_name: self.new_name,
-        })
+        }
+        .into())
     }
 }
 
@@ -47,3 +48,4 @@ impl ToArgs for KnownUserRenameArgs {
         vec![self.old_name.clone().into(), self.new_name.clone().into()]
     }
 }
+

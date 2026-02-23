@@ -58,7 +58,7 @@ impl ProfileListArgs {
                 let profile_home = app_state::profile_home(context.app_home(), &profile)?;
                 blocks.push(format_detailed_profile(&profile_home, profile == active)?);
             }
-            return Ok(CliResponse::from_text(blocks.join("\n\n")));
+            return Ok(blocks.join("\n\n").into());
         }
 
         let response = ProfileListResponse {
@@ -71,7 +71,7 @@ impl ProfileListArgs {
                 .collect(),
         };
 
-        CliResponse::from_facet(response)
+        Ok(response.into())
     }
 }
 
@@ -84,3 +84,4 @@ impl ToArgs for ProfileListArgs {
         }
     }
 }
+

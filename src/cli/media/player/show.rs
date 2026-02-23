@@ -49,7 +49,7 @@ impl MediaPlayerShowArgs {
         };
         let default_key = app_state::default_media_player(context.profile_home())?;
 
-        CliResponse::from_facet(MediaPlayerShowResponse {
+        Ok(MediaPlayerShowResponse {
             name: display_name_for_key(&key),
             key: key.clone(),
             support: if support_for_key(&key) {
@@ -59,7 +59,8 @@ impl MediaPlayerShowArgs {
             },
             configured_path: configured.path.display().to_string(),
             is_default: default_key.as_deref() == Some(&key),
-        })
+        }
+        .into())
     }
 }
 
@@ -68,3 +69,4 @@ impl ToArgs for MediaPlayerShowArgs {
         vec![self.key.clone().into()]
     }
 }
+

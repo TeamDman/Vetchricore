@@ -41,10 +41,11 @@ impl KnownUserRouteAddArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         let key = self.record_key.parse::<RecordKey>()?;
         app_state::add_route_key(context.profile_home(), &self.known_user, &key)?;
-        CliResponse::from_facet(KnownUserRouteAddResponse {
+        Ok(KnownUserRouteAddResponse {
             known_user: self.known_user,
             profile: context.profile_home().profile().to_owned(),
-        })
+        }
+        .into())
     }
 }
 
@@ -58,3 +59,4 @@ impl ToArgs for KnownUserRouteAddArgs {
         ]
     }
 }
+

@@ -38,14 +38,16 @@ impl ProfileRemoveArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         app_state::ensure_initialized(context.app_home())?;
         if !self.yes && !confirm_remove(&self.name)? {
-            return CliResponse::from_facet(ProfileRemoveResponse {
+            return Ok(ProfileRemoveResponse {
                 message: "Aborted profile removal.".to_owned(),
-            });
+            }
+            .into());
         }
         app_state::remove_profile(context.app_home(), &self.name)?;
-        CliResponse::from_facet(ProfileRemoveResponse {
+        Ok(ProfileRemoveResponse {
             message: format!("{} has been destroyed.", self.name),
-        })
+        }
+        .into())
     }
 }
 
@@ -69,3 +71,4 @@ impl ToArgs for ProfileRemoveArgs {
         args
     }
 }
+

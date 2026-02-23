@@ -142,12 +142,13 @@ impl RouteAddArgs {
             return Ok(CliResponse::empty());
         }
 
-        CliResponse::from_facet(RouteAddResponse {
+        Ok(RouteAddResponse {
             name: self.name,
             record_key: record_key_text,
             profile: profile_home.profile().to_owned(),
             initialized_offline: true,
-        })
+        }
+        .into())
     }
 }
 
@@ -160,3 +161,4 @@ impl ToArgs for RouteAddArgs {
         args
     }
 }
+

@@ -35,14 +35,16 @@ impl ProfileShowArgs {
         let profile_home = context.profile_home();
         if self.detailed {
             let active = app_state::current_active_profile(context.app_home())?;
-            return Ok(CliResponse::from_text(format_detailed_profile(
+            return Ok(format_detailed_profile(
                 profile_home,
                 profile_home.profile() == active,
-            )?));
+            )?
+            .into());
         } else {
-            return CliResponse::from_facet(ProfileShowResponse {
+            return Ok(ProfileShowResponse {
                 profile: profile_home.profile().to_owned(),
-            });
+            }
+            .into());
         }
     }
 }
@@ -56,3 +58,4 @@ impl ToArgs for ProfileShowArgs {
         }
     }
 }
+

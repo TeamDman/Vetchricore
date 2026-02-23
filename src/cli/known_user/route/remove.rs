@@ -53,9 +53,10 @@ impl KnownUserRouteRemoveArgs {
         .collect::<Vec<_>>();
 
         if matches.is_empty() {
-            return CliResponse::from_facet(KnownUserRouteRemoveResponse {
+            return Ok(KnownUserRouteRemoveResponse {
                 message: "No matching known-user routes found.".to_owned(),
-            });
+            }
+            .into());
         }
 
         if matches.len() > 1 {
@@ -69,9 +70,10 @@ impl KnownUserRouteRemoveArgs {
             let mut answer = String::new();
             std::io::stdin().read_line(&mut answer)?;
             if !answer.trim().eq_ignore_ascii_case("y") {
-                return CliResponse::from_facet(KnownUserRouteRemoveResponse {
+                return Ok(KnownUserRouteRemoveResponse {
                     message: "Aborted known-user route removal.".to_owned(),
-                });
+                }
+                .into());
             }
         }
 
@@ -80,9 +82,10 @@ impl KnownUserRouteRemoveArgs {
             self.known_user.as_deref(),
             record_key.as_ref(),
         )?;
-        CliResponse::from_facet(KnownUserRouteRemoveResponse {
+        Ok(KnownUserRouteRemoveResponse {
             message: format!("Removed {removed} known-user route(s)."),
-        })
+        }
+        .into())
     }
 }
 
@@ -100,3 +103,4 @@ impl ToArgs for KnownUserRouteRemoveArgs {
         args
     }
 }
+

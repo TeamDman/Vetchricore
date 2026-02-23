@@ -33,7 +33,7 @@ impl ProfileUseArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         app_state::ensure_initialized(context.app_home())?;
         app_state::set_active_profile(context.app_home(), &self.name)?;
-        CliResponse::from_facet(ProfileUseResponse { name: self.name })
+        Ok(ProfileUseResponse { name: self.name }.into())
     }
 }
 
@@ -42,3 +42,4 @@ impl ToArgs for ProfileUseArgs {
         vec![self.name.clone().into()]
     }
 }
+

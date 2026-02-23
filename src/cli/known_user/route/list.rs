@@ -62,7 +62,7 @@ impl KnownUserRouteListArgs {
                 .collect(),
         };
 
-        CliResponse::from_facet(response)
+        Ok(response.into())
     }
 }
 
@@ -76,3 +76,4 @@ impl ToArgs for KnownUserRouteListArgs {
         args
     }
 }
+

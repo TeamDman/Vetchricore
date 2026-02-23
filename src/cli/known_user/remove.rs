@@ -32,7 +32,7 @@ impl KnownUserRemoveArgs {
     )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         app_state::remove_known_user(context.profile_home(), &self.name)?;
-        CliResponse::from_facet(KnownUserRemoveResponse { name: self.name })
+        Ok(KnownUserRemoveResponse { name: self.name }.into())
     }
 }
 
@@ -41,3 +41,4 @@ impl ToArgs for KnownUserRemoveArgs {
         vec![self.name.clone().into()]
     }
 }
+

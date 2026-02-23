@@ -48,11 +48,13 @@ impl KeyGenArgs {
         api.shutdown().await;
 
         app_state::store_keypair(profile_home, &keypair)?;
-        CliResponse::from_facet(KeyGenResponse {
+        Ok(KeyGenResponse {
             public_key: keypair.key().to_string(),
             private_key_hidden: true,
-        })
+        }
+        .into())
     }
 }
 
 impl ToArgs for KeyGenArgs {}
+

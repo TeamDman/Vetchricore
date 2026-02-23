@@ -34,7 +34,7 @@ impl MediaPlayerDefaultSetArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         let key = canonical_media_player_key(&self.key);
         app_state::set_default_media_player(context.profile_home(), &key)?;
-        CliResponse::from_facet(MediaPlayerDefaultSetResponse { key })
+        Ok(MediaPlayerDefaultSetResponse { key }.into())
     }
 }
 
@@ -43,3 +43,4 @@ impl ToArgs for MediaPlayerDefaultSetArgs {
         vec![self.key.clone().into()]
     }
 }
+

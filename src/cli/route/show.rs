@@ -41,11 +41,12 @@ impl RouteShowArgs {
             bail!("Route '{}' does not exist.", self.name);
         };
 
-        CliResponse::from_facet(RouteShowResponse {
+        Ok(RouteShowResponse {
             name: route.name,
             record_key: route.record_key.to_string(),
             public_key: route.keypair.key().to_string(),
-        })
+        }
+        .into())
     }
 }
 
@@ -54,3 +55,4 @@ impl ToArgs for RouteShowArgs {
         vec![self.name.clone().into()]
     }
 }
+
