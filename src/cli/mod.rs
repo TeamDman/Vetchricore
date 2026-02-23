@@ -1,6 +1,7 @@
 pub mod app_state;
 pub mod global_args;
 pub mod key;
+pub mod media;
 pub mod known_user;
 pub mod profile;
 pub mod route;
@@ -10,6 +11,7 @@ pub mod veilid_runtime;
 
 use crate::cli::global_args::GlobalArgs;
 use crate::cli::key::KeyArgs;
+use crate::cli::media::MediaArgs;
 use crate::cli::known_user::KnownUserArgs;
 use crate::cli::profile::ProfileArgs;
 use crate::cli::route::RouteArgs;
@@ -174,6 +176,8 @@ pub enum Command {
     Key(KeyArgs),
     /// Route management commands.
     Route(RouteArgs),
+    /// Media management commands.
+    Media(MediaArgs),
     /// Sending commands.
     Send(SendArgs),
     /// Test utility commands.
@@ -190,6 +194,7 @@ impl Command {
             Command::KnownUser(args) => args.invoke(context).await,
             Command::Key(args) => args.invoke(context).await,
             Command::Route(args) => args.invoke(context).await,
+            Command::Media(args) => args.invoke(context).await,
             Command::Send(args) => args.invoke(context).await,
             Command::Test(args) => args.invoke(context).await,
         }
@@ -215,6 +220,10 @@ impl ToArgs for Command {
             Command::Route(route_args) => {
                 args.push("route".into());
                 args.extend(route_args.to_args());
+            }
+            Command::Media(media_args) => {
+                args.push("media".into());
+                args.extend(media_args.to_args());
             }
             Command::Send(send_args) => {
                 args.push("send".into());

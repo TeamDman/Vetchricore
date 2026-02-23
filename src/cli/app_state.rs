@@ -5,6 +5,7 @@ use eyre::bail;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use tracing::debug;
 use veilid_core::KeyPair;
 use veilid_core::PublicKey;
 use veilid_core::RecordKey;
@@ -15,6 +16,8 @@ const KEYPAIR_FILE: &str = "keypair.txt";
 const KNOWN_USERS_FILE: &str = "known_users.tsv";
 const ROUTES_FILE: &str = "routes.tsv";
 const ROUTE_IDENTITIES_FILE: &str = "route_identities.tsv";
+const MEDIA_PLAYERS_FILE: &str = "media_players.tsv";
+const DEFAULT_MEDIA_PLAYER_FILE: &str = "default_media_player.txt";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProfileHome {
@@ -69,6 +72,12 @@ pub struct LocalRouteIdentity {
 pub struct KnownUserRouteEntry {
     pub known_user: String,
     pub record_key: RecordKey,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MediaPlayerEntry {
+    pub key: String,
+    pub path: PathBuf,
 }
 
 /// Ensure app home and profile metadata exist.
@@ -163,6 +172,7 @@ pub fn create_profile(app_home: &AppHome, name: &str) -> Result<()> {
     let profile_home = profile_home(app_home, name)?;
     std::fs::write(known_users_file(&profile_home), "")?;
     std::fs::write(routes_file(&profile_home), "")?;
+    std::fs::write(media_players_file(&profile_home), "")?;
     Ok(())
 }
 
@@ -558,7 +568,7 @@ pub fn list_local_route_identities(profile_home: &ProfileHome) -> Result<Vec<Loc
     }
 
     let mut routes = Vec::new();
-    for line in std::fs::read_to_string(path)?.lines() {
+    for line in std::fs::read_to_string(&path)?.lines() {
         let mut parts = line.splitn(3, '\t');
         let Some(name) = parts.next() else {
             continue;
@@ -578,6 +588,145 @@ pub fn list_local_route_identities(profile_home: &ProfileHome) -> Result<Vec<Loc
     }
     routes.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(routes)
+}
+
+/// List configured media players for a profile.
+///
+/// # Errors
+///
+/// Returns an error if media-player data cannot be loaded.
+pub fn list_media_players(profile_home: &ProfileHome) -> Result<Vec<MediaPlayerEntry>> {
+    ensure_profile_exists(profile_home)?;
+    let path = media_players_file(profile_home);
+    debug!(
+        media_players_file = %path.display(),
+        "loading media players"
+    );
+    if !path.exists() {
+        debug!(
+            media_players_file = %path.display(),
+            "media players file does not exist"
+        );
+        return Ok(Vec::new());
+    }
+
+    let mut players = Vec::new();
+    for line in std::fs::read_to_string(&path)?.lines() {
+        let Some((key, player_path)) = line.split_once('\t') else {
+            continue;
+        };
+        if key.trim().is_empty() || player_path.trim().is_empty() {
+            continue;
+        }
+        players.push(MediaPlayerEntry {
+            key: key.to_owned(),
+            path: PathBuf::from(player_path),
+        });
+    }
+    players.sort_by(|a, b| a.key.cmp(&b.key).then_with(|| a.path.cmp(&b.path)));
+    debug!(
+        media_players_file = %path.display(),
+        media_player_count = players.len(),
+        "loaded media players"
+    );
+    Ok(players)
+}
+
+/// Add or update a configured media player path.
+///
+/// # Errors
+///
+/// Returns an error if media-player data cannot be loaded or persisted.
+pub fn upsert_media_player(profile_home: &ProfileHome, key: &str, path: &Path) -> Result<()> {
+    validate_media_player_key(key)?;
+    let mut players = list_media_players(profile_home)?;
+    let path = path.to_path_buf();
+    debug!(
+        media_player_key = key,
+        media_player_path = %path.display(),
+        "upserting media player"
+    );
+
+    if let Some(existing) = players.iter_mut().find(|entry| entry.key == key) {
+        existing.path = path;
+    } else {
+        players.push(MediaPlayerEntry {
+            key: key.to_owned(),
+            path,
+        });
+    }
+
+    players.sort_by(|a, b| a.key.cmp(&b.key).then_with(|| a.path.cmp(&b.path)));
+    write_media_players_file(profile_home, &players)
+}
+
+/// Look up a configured media player by key.
+///
+/// # Errors
+///
+/// Returns an error if media-player data cannot be loaded.
+pub fn media_player(profile_home: &ProfileHome, key: &str) -> Result<Option<MediaPlayerEntry>> {
+    validate_media_player_key(key)?;
+    let players = list_media_players(profile_home)?;
+    let found = players.into_iter().find(|entry| entry.key == key);
+    debug!(
+        media_player_key = key,
+        found = found.is_some(),
+        "looked up media player"
+    );
+    Ok(found)
+}
+
+/// Set the default media player key.
+///
+/// # Errors
+///
+/// Returns an error if the media player is unknown or default cannot be persisted.
+pub fn set_default_media_player(profile_home: &ProfileHome, key: &str) -> Result<()> {
+    validate_media_player_key(key)?;
+    if media_player(profile_home, key)?.is_none() {
+        bail!("Media player '{}' does not exist.", key);
+    }
+    std::fs::write(default_media_player_file(profile_home), format!("{key}\n"))?;
+    debug!(
+        media_player_key = key,
+        default_media_player_file = %default_media_player_file(profile_home).display(),
+        "set default media player"
+    );
+    Ok(())
+}
+
+/// Get the configured default media player key, if any.
+///
+/// # Errors
+///
+/// Returns an error if the default file cannot be read.
+pub fn default_media_player(profile_home: &ProfileHome) -> Result<Option<String>> {
+    ensure_profile_exists(profile_home)?;
+    let path = default_media_player_file(profile_home);
+    debug!(
+        default_media_player_file = %path.display(),
+        "loading default media player"
+    );
+    if !path.exists() {
+        debug!(
+            default_media_player_file = %path.display(),
+            "default media player file does not exist"
+        );
+        return Ok(None);
+    }
+
+    let key = std::fs::read_to_string(path)?.trim().to_owned();
+    if key.is_empty() {
+        return Ok(None);
+    }
+
+    validate_media_player_key(&key)?;
+    debug!(
+        media_player_key = key,
+        "loaded default media player"
+    );
+    Ok(Some(key))
 }
 
 fn write_local_route_identities(
@@ -682,6 +831,29 @@ fn route_identities_file(profile_home: &ProfileHome) -> PathBuf {
     profile_home.profile_dir().join(ROUTE_IDENTITIES_FILE)
 }
 
+fn media_players_file(profile_home: &ProfileHome) -> PathBuf {
+    profile_home.profile_dir().join(MEDIA_PLAYERS_FILE)
+}
+
+fn default_media_player_file(profile_home: &ProfileHome) -> PathBuf {
+    profile_home.profile_dir().join(DEFAULT_MEDIA_PLAYER_FILE)
+}
+
+fn write_media_players_file(profile_home: &ProfileHome, players: &[MediaPlayerEntry]) -> Result<()> {
+    let lines = players
+        .iter()
+        .map(|entry| format!("{}\t{}", entry.key, entry.path.display()))
+        .collect::<Vec<_>>();
+    let path = media_players_file(profile_home);
+    std::fs::write(&path, lines.join("\n"))?;
+    debug!(
+        media_players_file = %path.display(),
+        media_player_count = players.len(),
+        "persisted media players"
+    );
+    Ok(())
+}
+
 fn ensure_profile_exists(profile_home: &ProfileHome) -> Result<()> {
     validate_profile_name(profile_home.profile())?;
     let dir = profile_home.profile_dir();
@@ -709,6 +881,17 @@ fn validate_route_name(name: &str) -> Result<()> {
     }
     if trimmed.contains(['/', '\\']) {
         bail!("Route name cannot contain path separators.");
+    }
+    Ok(())
+}
+
+fn validate_media_player_key(key: &str) -> Result<()> {
+    let trimmed = key.trim();
+    if trimmed.is_empty() {
+        bail!("Media player key cannot be empty.");
+    }
+    if trimmed.contains(['/', '\\']) {
+        bail!("Media player key cannot contain path separators.");
     }
     Ok(())
 }
