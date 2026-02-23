@@ -3,6 +3,7 @@ use crate::cli::ToArgs;
 use crate::cli::key::key_gen::KeyGenArgs;
 use crate::cli::key::remove::KeyRemoveArgs;
 use crate::cli::key::show::KeyShowArgs;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -27,13 +28,12 @@ impl KeyArgs {
     /// # Errors
     ///
     /// Returns an error if the selected key subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
-            KeyCommand::Gen(args) => args.invoke(context).await?,
-            KeyCommand::Show(args) => args.invoke(context).await?,
-            KeyCommand::Remove(args) => args.invoke(context).await?,
+            KeyCommand::Gen(args) => args.invoke(context).await,
+            KeyCommand::Show(args) => args.invoke(context).await,
+            KeyCommand::Remove(args) => args.invoke(context).await,
         }
-        Ok(())
     }
 }
 

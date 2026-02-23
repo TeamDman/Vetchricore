@@ -1,5 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
+use crate::cli::response::CliResponse;
 use crate::cli::route::add::RouteAddArgs;
 use crate::cli::route::list::RouteListArgs;
 use crate::cli::route::listen::RouteListenArgs;
@@ -33,17 +34,19 @@ impl RouteArgs {
     /// # Errors
     ///
     /// Returns an error if the selected route subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
-            RouteCommand::Add(args) => args.invoke(context).await?,
-            RouteCommand::New(args) => args.invoke(context).await?,
-            RouteCommand::Create(args) => args.invoke(context).await?,
-            RouteCommand::Listen(args) => args.invoke(context).await?,
-            RouteCommand::List(args) => args.invoke(context).await?,
-            RouteCommand::Show(args) => args.invoke(context).await?,
-            RouteCommand::Remove(args) => args.invoke(context).await?,
+            RouteCommand::Add(args) => args.invoke(context).await,
+            RouteCommand::New(args) => args.invoke(context).await,
+            RouteCommand::Create(args) => args.invoke(context).await,
+            RouteCommand::Listen(args) => {
+                args.invoke(context).await?;
+                Ok(CliResponse::empty())
+            }
+            RouteCommand::List(args) => args.invoke(context).await,
+            RouteCommand::Show(args) => args.invoke(context).await,
+            RouteCommand::Remove(args) => args.invoke(context).await,
         }
-        Ok(())
     }
 }
 

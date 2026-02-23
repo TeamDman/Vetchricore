@@ -1,19 +1,38 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
+use crate::cli::response::CliResponse;
 use crate::cli::veilid_runtime::printing_update_callback;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use eyre::bail;
 use facet::Facet;
+use std::fmt;
 use veilid_core::CRYPTO_KIND_VLD0;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
 pub struct KeyGenArgs;
 
+#[derive(Clone, Debug, PartialEq, Eq, Facet)]
+pub struct KeyGenResponse {
+    public_key: String,
+    private_key_hidden: bool,
+}
+
+impl fmt::Display for KeyGenResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Public key: {}", self.public_key)?;
+        if self.private_key_hidden {
+            write!(f, "Private key: this value is hidden")
+        } else {
+            write!(f, "Private key: <unavailable>")
+        }
+    }
+}
+
 impl KeyGenArgs {
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         let profile_home = context.profile_home();
         if app_state::load_keypair(profile_home)?.is_some() {
             bail!("You already have a keypair.");
@@ -29,10 +48,10 @@ impl KeyGenArgs {
         api.shutdown().await;
 
         app_state::store_keypair(profile_home, &keypair)?;
-        println!("Public key: {}", keypair.key());
-        println!("Private key: this value is hidden");
-
-        Ok(())
+        CliResponse::from_facet(KeyGenResponse {
+            public_key: keypair.key().to_string(),
+            private_key_hidden: true,
+        })
     }
 }
 

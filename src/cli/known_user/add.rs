@@ -1,10 +1,12 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
 use figue as args;
+use std::fmt;
 use veilid_core::PublicKey;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq)]
@@ -15,17 +17,27 @@ pub struct KnownUserAddArgs {
     pub pubkey: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Facet)]
+pub struct KnownUserAddResponse {
+    name: String,
+}
+
+impl fmt::Display for KnownUserAddResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "You have added {} as a known user.", self.name)
+    }
+}
+
 impl KnownUserAddArgs {
     #[expect(
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         let profile_home = context.profile_home();
         let pubkey = self.pubkey.parse::<PublicKey>()?;
         app_state::add_known_user(profile_home, &self.name, pubkey)?;
-        println!("You have added {} as a known user.", self.name);
-        Ok(())
+        CliResponse::from_facet(KnownUserAddResponse { name: self.name })
     }
 }
 

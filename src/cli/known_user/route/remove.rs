@@ -1,10 +1,12 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
 use figue as args;
+use std::fmt;
 use std::io::Write;
 use veilid_core::RecordKey;
 
@@ -16,12 +18,23 @@ pub struct KnownUserRouteRemoveArgs {
     pub record_id: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Facet)]
+pub struct KnownUserRouteRemoveResponse {
+    message: String,
+}
+
+impl fmt::Display for KnownUserRouteRemoveResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
 impl KnownUserRouteRemoveArgs {
     #[expect(
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         let record_key = self
             .record_id
             .as_ref()
@@ -40,8 +53,9 @@ impl KnownUserRouteRemoveArgs {
         .collect::<Vec<_>>();
 
         if matches.is_empty() {
-            println!("No matching known-user routes found.");
-            return Ok(());
+            return CliResponse::from_facet(KnownUserRouteRemoveResponse {
+                message: "No matching known-user routes found.".to_owned(),
+            });
         }
 
         if matches.len() > 1 {
@@ -55,7 +69,9 @@ impl KnownUserRouteRemoveArgs {
             let mut answer = String::new();
             std::io::stdin().read_line(&mut answer)?;
             if !answer.trim().eq_ignore_ascii_case("y") {
-                return Ok(());
+                return CliResponse::from_facet(KnownUserRouteRemoveResponse {
+                    message: "Aborted known-user route removal.".to_owned(),
+                });
             }
         }
 
@@ -64,8 +80,9 @@ impl KnownUserRouteRemoveArgs {
             self.known_user.as_deref(),
             record_key.as_ref(),
         )?;
-        println!("Removed {removed} known-user route(s).");
-        Ok(())
+        CliResponse::from_facet(KnownUserRouteRemoveResponse {
+            message: format!("Removed {removed} known-user route(s)."),
+        })
     }
 }
 

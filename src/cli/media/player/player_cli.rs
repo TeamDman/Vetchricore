@@ -5,6 +5,7 @@ use crate::cli::media::player::default::MediaPlayerDefaultArgs;
 use crate::cli::media::player::detect::MediaPlayerDetectArgs;
 use crate::cli::media::player::list::MediaPlayerListArgs;
 use crate::cli::media::player::show::MediaPlayerShowArgs;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -36,20 +37,19 @@ impl MediaPlayerArgs {
     /// # Errors
     ///
     /// Returns an error if the selected media-player subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
-            MediaPlayerCommand::List(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Add(args) => args.invoke(context).await?,
-            MediaPlayerCommand::New(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Set(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Update(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Create(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Show(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Default(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Detect(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Discover(args) => args.invoke(context).await?,
+            MediaPlayerCommand::List(args) => args.invoke(context).await,
+            MediaPlayerCommand::Add(args) => args.invoke(context).await,
+            MediaPlayerCommand::New(args) => args.invoke(context).await,
+            MediaPlayerCommand::Set(args) => args.invoke(context).await,
+            MediaPlayerCommand::Update(args) => args.invoke(context).await,
+            MediaPlayerCommand::Create(args) => args.invoke(context).await,
+            MediaPlayerCommand::Show(args) => args.invoke(context).await,
+            MediaPlayerCommand::Default(args) => args.invoke(context).await,
+            MediaPlayerCommand::Detect(args) => args.invoke(context).await,
+            MediaPlayerCommand::Discover(args) => args.invoke(context).await,
         }
-        Ok(())
     }
 }
 

@@ -1,11 +1,13 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
+use crate::cli::response::CliResponse;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
 use figue as args;
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -19,12 +21,23 @@ pub struct RouteRemoveArgs {
     pub name: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Facet)]
+pub struct RouteRemoveResponse {
+    name: String,
+}
+
+impl fmt::Display for RouteRemoveResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Route '{}' has been removed.", self.name)
+    }
+}
+
 impl RouteRemoveArgs {
     /// # Errors
     ///
     /// Returns an error if the route does not exist, network readiness cannot be reached,
     /// DHT cleanup fails, or route identity persistence update fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         let profile_home = context.profile_home();
         let identity = app_state::local_route_identity(profile_home, &self.name)?
             .ok_or_else(|| eyre::eyre!("Route '{}' does not exist.", self.name))?;
@@ -60,8 +73,7 @@ impl RouteRemoveArgs {
         api.shutdown().await;
 
         app_state::remove_local_route_identity(profile_home, &self.name)?;
-        println!("Route '{}' has been removed.", self.name);
-        Ok(())
+        CliResponse::from_facet(RouteRemoveResponse { name: self.name })
     }
 }
 
@@ -77,7 +89,6 @@ async fn wait_for_public_internet_ready(
     }
 
     if !public_internet_ready.load(Ordering::Acquire) {
-        println!("Waiting for public internet readiness...");
         let start = Instant::now();
         let timeout = Duration::from_secs(120);
         while !public_internet_ready.load(Ordering::Acquire) {

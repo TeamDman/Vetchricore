@@ -1,5 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
+use crate::cli::response::CliResponse;
 use crate::cli::test::run::TestRunArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -23,11 +24,10 @@ impl TestArgs {
     /// # Errors
     ///
     /// Returns an error if the selected test subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
-            TestCommand::Run(args) => args.invoke(context).await?,
+            TestCommand::Run(args) => args.invoke(context).await,
         }
-        Ok(())
     }
 }
 

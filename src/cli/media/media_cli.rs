@@ -1,6 +1,7 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::media::player::MediaPlayerArgs;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -23,11 +24,10 @@ impl MediaArgs {
     /// # Errors
     ///
     /// Returns an error if the selected media subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
-            MediaCommand::Player(args) => args.invoke(context).await?,
+            MediaCommand::Player(args) => args.invoke(context).await,
         }
-        Ok(())
     }
 }
 

@@ -13,81 +13,100 @@ fn paint(style: &str, value: &str) -> String {
     format!("{style}{value}{RESET}")
 }
 
-/// Print a profile in detailed colorful format.
+fn push_line(buffer: &mut String, line: &str) {
+    if !buffer.is_empty() {
+        buffer.push('\n');
+    }
+    buffer.push_str(line);
+}
+
+/// Format a profile in detailed colorful text.
 ///
 /// # Errors
 ///
 /// Returns an error if profile metadata cannot be loaded.
-pub(super) fn print_detailed_profile(profile_home: &ProfileHome, is_active: bool) -> Result<()> {
+pub(super) fn format_detailed_profile(profile_home: &ProfileHome, is_active: bool) -> Result<String> {
+    let mut out = String::new();
+
     let profile = profile_home.profile();
     let title = if is_active {
         format!("{} {}", profile, paint(GREEN, "(active)"))
     } else {
         profile.to_owned()
     };
-    println!("{BOLD_CYAN}{title}{RESET}");
+    push_line(&mut out, &format!("{BOLD_CYAN}{title}{RESET}"));
 
     let keypair = app_state::load_keypair(profile_home)?;
     match keypair {
         Some(keypair) => {
-            println!("  {} {}", paint(MAGENTA, "profile pubkey:"), keypair.key());
+            push_line(
+                &mut out,
+                &format!("  {} {}", paint(MAGENTA, "profile pubkey:"), keypair.key()),
+            );
         }
         None => {
-            println!(
-                "  {} {}",
-                paint(MAGENTA, "profile pubkey:"),
-                paint(DIM, "<none>")
+            push_line(
+                &mut out,
+                &format!(
+                    "  {} {}",
+                    paint(MAGENTA, "profile pubkey:"),
+                    paint(DIM, "<none>")
+                ),
             );
         }
     }
 
     let known_users = app_state::list_known_users(profile_home)?;
-    println!("  {} {}", paint(YELLOW, "known users:"), known_users.len());
+    push_line(
+        &mut out,
+        &format!("  {} {}", paint(YELLOW, "known users:"), known_users.len()),
+    );
     if known_users.is_empty() {
-        println!("    {}", paint(DIM, "<none>"));
+        push_line(&mut out, &format!("    {}", paint(DIM, "<none>")));
     } else {
         for known_user in &known_users {
-            println!("    {} ({})", known_user.name, known_user.pubkey);
+            push_line(&mut out, &format!("    {} ({})", known_user.name, known_user.pubkey));
         }
     }
 
     let known_user_routes = app_state::list_known_user_route_keys(profile_home, None)?;
-    println!(
-        "  {} {}",
-        paint(YELLOW, "known-user routes:"),
-        known_user_routes.len()
+    push_line(
+        &mut out,
+        &format!(
+            "  {} {}",
+            paint(YELLOW, "known-user routes:"),
+            known_user_routes.len()
+        ),
     );
     if known_user_routes.is_empty() {
-        println!("    {}", paint(DIM, "<none>"));
+        push_line(&mut out, &format!("    {}", paint(DIM, "<none>")));
     } else {
         for route in &known_user_routes {
-            println!("    {} -> {}", route.known_user, route.record_key);
+            push_line(&mut out, &format!("    {} -> {}", route.known_user, route.record_key));
         }
     }
 
     let listen_routes = app_state::list_local_route_identities(profile_home)?;
-    println!(
-        "  {} {}",
-        paint(YELLOW, "listen routes:"),
-        listen_routes.len()
+    push_line(
+        &mut out,
+        &format!("  {} {}", paint(YELLOW, "listen routes:"), listen_routes.len()),
     );
     if listen_routes.is_empty() {
-        println!("    {}", paint(DIM, "<none>"));
+        push_line(&mut out, &format!("    {}", paint(DIM, "<none>")));
     } else {
         for route in &listen_routes {
-            println!("    {}", route.name);
-            println!(
-                "      {} {}",
-                paint(MAGENTA, "record key:"),
-                route.record_key
+            push_line(&mut out, &format!("    {}", route.name));
+            push_line(
+                &mut out,
+                &format!("      {} {}", paint(MAGENTA, "record key:"), route.record_key),
             );
-            println!(
-                "      {} {}",
-                paint(MAGENTA, "public key:"),
-                route.keypair.key()
+            push_line(
+                &mut out,
+                &format!("      {} {}", paint(MAGENTA, "public key:"), route.keypair.key()),
             );
         }
     }
 
-    Ok(())
+    Ok(out)
 }
+

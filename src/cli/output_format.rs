@@ -10,6 +10,7 @@ use std::str::FromStr;
 pub enum OutputFormat {
     Text,
     Json,
+    PrettyJson,
 }
 
 impl fmt::Display for OutputFormat {
@@ -17,6 +18,7 @@ impl fmt::Display for OutputFormat {
         match self {
             Self::Text => f.write_str("text"),
             Self::Json => f.write_str("json"),
+            Self::PrettyJson => f.write_str("pretty-json"),
         }
     }
 }
@@ -28,7 +30,11 @@ impl FromStr for OutputFormat {
         match value.to_ascii_lowercase().as_str() {
             "text" => Ok(Self::Text),
             "json" => Ok(Self::Json),
-            _ => bail!("Unsupported output format '{}'. Use text or json.", value),
+            "pretty-json" | "pretty_json" | "prettyjson" => Ok(Self::PrettyJson),
+            _ => bail!(
+                "Unsupported output format '{}'. Use text, json, or pretty-json.",
+                value
+            ),
         }
     }
 }
@@ -57,7 +63,7 @@ impl OutputFormatArg {
                 if std::io::stdout().is_terminal() {
                     OutputFormat::Text
                 } else {
-                    OutputFormat::Json
+                    OutputFormat::PrettyJson
                 }
             }
             Self::Some(format) => format,

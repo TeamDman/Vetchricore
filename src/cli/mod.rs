@@ -5,6 +5,7 @@ pub mod media;
 pub mod known_user;
 pub mod output_format;
 pub mod profile;
+pub mod response;
 pub mod route;
 pub mod send;
 pub mod test;
@@ -16,6 +17,7 @@ use crate::cli::media::MediaArgs;
 use crate::cli::known_user::KnownUserArgs;
 use crate::cli::output_format::OutputFormatArg;
 use crate::cli::profile::ProfileArgs;
+use crate::cli::response::CliResponse;
 use crate::cli::route::RouteArgs;
 use crate::cli::send::SendArgs;
 use crate::cli::test::TestArgs;
@@ -146,11 +148,17 @@ impl Cli {
             cache_home = %cache_home,
             profile_home = %profile_home,
         );
+        let output_format = context
+            .output_format()
+            .unwrap_or(OutputFormatArg::Auto)
+            .resolve();
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .wrap_err("Failed to build tokio runtime")?;
-        runtime.block_on(async move { self.command.invoke(&context).instrument(span).await })?;
+        let response =
+            runtime.block_on(async move { self.command.invoke(&context).instrument(span).await })?;
+        response.write(output_format)?;
         Ok(())
     }
 
@@ -198,7 +206,7 @@ impl Command {
     /// # Errors
     ///
     /// This function will return an error if the subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> eyre::Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> eyre::Result<CliResponse> {
         match self {
             Command::Profile(args) => args.invoke(context).await,
             Command::KnownUser(args) => args.invoke(context).await,

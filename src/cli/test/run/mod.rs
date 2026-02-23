@@ -2,6 +2,7 @@ pub mod e2e_chat;
 
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -24,11 +25,11 @@ impl TestRunArgs {
     /// # Errors
     ///
     /// Returns an error if the selected test run scenario fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
             TestRunCommand::E2eChat(args) => args.invoke(context).await?,
         }
-        Ok(())
+        Ok(CliResponse::empty())
     }
 }
 

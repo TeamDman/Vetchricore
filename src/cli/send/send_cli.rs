@@ -1,5 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
+use crate::cli::response::CliResponse;
 use crate::cli::send::chat::SendChatArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -25,11 +26,11 @@ impl SendArgs {
     /// # Errors
     ///
     /// Returns an error if the selected send subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
             SendCommand::Chat(args) => args.invoke(context, &self.known_user).await?,
         }
-        Ok(())
+        Ok(CliResponse::empty())
     }
 }
 

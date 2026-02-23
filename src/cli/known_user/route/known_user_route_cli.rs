@@ -3,6 +3,7 @@ use crate::cli::ToArgs;
 use crate::cli::known_user::route::add::KnownUserRouteAddArgs;
 use crate::cli::known_user::route::list::KnownUserRouteListArgs;
 use crate::cli::known_user::route::remove::KnownUserRouteRemoveArgs;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -29,15 +30,14 @@ impl KnownUserRouteArgs {
     /// # Errors
     ///
     /// Returns an error if the selected known-user route subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
-            KnownUserRouteCommand::Add(args) => args.invoke(context).await?,
-            KnownUserRouteCommand::New(args) => args.invoke(context).await?,
-            KnownUserRouteCommand::Create(args) => args.invoke(context).await?,
-            KnownUserRouteCommand::List(args) => args.invoke(context).await?,
-            KnownUserRouteCommand::Remove(args) => args.invoke(context).await?,
+            KnownUserRouteCommand::Add(args) => args.invoke(context).await,
+            KnownUserRouteCommand::New(args) => args.invoke(context).await,
+            KnownUserRouteCommand::Create(args) => args.invoke(context).await,
+            KnownUserRouteCommand::List(args) => args.invoke(context).await,
+            KnownUserRouteCommand::Remove(args) => args.invoke(context).await,
         }
-        Ok(())
     }
 }
 

@@ -1,0 +1,85 @@
+use crate::cli::output_format::OutputFormat;
+use eyre::Result;
+use facet::Facet;
+use std::fmt::Display;
+
+#[derive(Default)]
+pub struct CliResponse {
+    body: CliResponseBody,
+}
+
+impl std::fmt::Debug for CliResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.body {
+            CliResponseBody::Empty => f.write_str("CliResponse::Empty"),
+            CliResponseBody::Text(_) => f.write_str("CliResponse::Text(..)"),
+            CliResponseBody::Deferred(_) => f.write_str("CliResponse::Deferred(..)"),
+        }
+    }
+}
+
+#[derive(Default)]
+enum CliResponseBody {
+    #[default]
+    Empty,
+    Text(Box<dyn Display>),
+    Deferred(Box<dyn DeferredRender>),
+}
+
+trait DeferredRender {
+    fn render(&self, output_format: OutputFormat) -> Result<String>;
+}
+
+struct FacetDeferredRender<T> {
+    value: T,
+}
+
+impl<T> DeferredRender for FacetDeferredRender<T>
+where
+    T: for<'a> Facet<'a> + Display,
+{
+    fn render(&self, output_format: OutputFormat) -> Result<String> {
+        match output_format {
+            OutputFormat::Text => Ok(self.value.to_string()),
+            OutputFormat::Json => Ok(facet_json::to_string(&self.value)?),
+            OutputFormat::PrettyJson => Ok(facet_json::to_string_pretty(&self.value)?),
+        }
+    }
+}
+
+impl CliResponse {
+    #[must_use]
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn from_facet<T>(value: T) -> Result<Self>
+    where
+        T: for<'a> Facet<'a> + Display + 'static,
+    {
+        Ok(Self {
+            body: CliResponseBody::Deferred(Box::new(FacetDeferredRender { value })),
+        })
+    }
+
+    #[must_use]
+    pub fn from_text(text: impl Display + 'static) -> Self {
+        Self {
+            body: CliResponseBody::Text(Box::new(text)),
+        }
+    }
+
+    pub fn write(self, output_format: OutputFormat) -> Result<()> {
+        match self.body {
+            CliResponseBody::Empty => {}
+            CliResponseBody::Text(body) => {
+                println!("{body}");
+            }
+            CliResponseBody::Deferred(renderer) => {
+                let body = renderer.render(output_format)?;
+                println!("{body}");
+            }
+        }
+        Ok(())
+    }
+}

@@ -2,6 +2,7 @@ use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::media::player::default::set::MediaPlayerDefaultSetArgs;
 use crate::cli::media::player::default::show::MediaPlayerDefaultShowArgs;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -25,12 +26,11 @@ impl MediaPlayerDefaultArgs {
     /// # Errors
     ///
     /// Returns an error if the selected default subcommand fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         match self.command {
-            MediaPlayerDefaultCommand::Set(args) => args.invoke(context).await?,
-            MediaPlayerDefaultCommand::Show(args) => args.invoke(context).await?,
+            MediaPlayerDefaultCommand::Set(args) => args.invoke(context).await,
+            MediaPlayerDefaultCommand::Show(args) => args.invoke(context).await,
         }
-        Ok(())
     }
 }
 

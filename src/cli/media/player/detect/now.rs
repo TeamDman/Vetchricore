@@ -5,8 +5,7 @@ use crate::cli::media::player::catalog::detect_media_players_by_walk;
 use crate::cli::media::player::catalog::detect_media_players_on_path;
 use crate::cli::media::player::catalog::display_name_for_key;
 use crate::cli::media::player::catalog::support_for_key;
-use crate::cli::output_format::OutputFormat;
-use crate::cli::output_format::OutputFormatArg;
+use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use color_eyre::owo_colors::OwoColorize;
 use eyre::Result;
@@ -55,10 +54,6 @@ impl FromStr for WalkMode {
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
 pub struct MediaPlayerDetectNowArgs {
-    /// Output format: auto, text, json.
-    #[facet(args::named)]
-    pub output_format: Option<OutputFormatArg>,
-
     /// Recursively walk filesystem for media players: yes|no|true|false|ask.
     #[facet(args::named)]
     pub walk: Option<WalkMode>,
@@ -81,22 +76,56 @@ struct DetectOutputItem {
     newly_added: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Facet)]
+pub struct MediaPlayerDetectNowResponse {
+    output: Vec<DetectOutputItem>,
+}
+
+impl fmt::Display for MediaPlayerDetectNowResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.output.is_empty() {
+            return f.write_str("No media players were detected on PATH.");
+        }
+
+        for (index, item) in self.output.iter().enumerate() {
+            let status = if item.supported {
+                "supported".green().to_string()
+            } else {
+                "not supported".yellow().to_string()
+            };
+            let marker = if item.newly_added {
+                "(added)".cyan().to_string()
+            } else {
+                "(already configured)".bright_black().to_string()
+            };
+
+            if index > 0 {
+                writeln!(f)?;
+            }
+
+            write!(
+                f,
+                "{} ({status}) {} {}",
+                item.name,
+                item.path.bright_black(),
+                marker
+            )?;
+        }
+
+        Ok(())
+    }
+}
+
 impl MediaPlayerDetectNowArgs {
     #[expect(
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
-        let output_format = self
-            .output_format
-            .or(context.output_format())
-            .unwrap_or(OutputFormatArg::Auto)
-            .resolve();
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         let should_walk = self.should_walk()?;
         let walk_timeout = self.walk_timeout_duration()?;
         let walk_roots = self.walk_roots()?;
         debug!(
-            output_format = ?output_format,
             should_walk,
             walk_timeout_ms = walk_timeout.as_millis(),
             walk_roots_count = walk_roots.len(),
@@ -148,41 +177,7 @@ impl MediaPlayerDetectNowArgs {
 
         output.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.path.cmp(&b.path)));
 
-        match output_format {
-            OutputFormat::Text => {
-                if output.is_empty() {
-                    println!("No media players were detected on PATH.");
-                } else {
-                    for item in &output {
-                        let status = if item.supported {
-                            "supported".green().to_string()
-                        } else {
-                            "not supported".yellow().to_string()
-                        };
-                        let marker = if item.newly_added {
-                            "(added)".cyan().to_string()
-                        } else {
-                            "(already configured)".bright_black().to_string()
-                        };
-                        println!(
-                            "{} ({status}) {} {}",
-                            item.name,
-                            item.path.bright_black(),
-                            marker
-                        );
-                    }
-                }
-            }
-            OutputFormat::Json => {
-                let json = if std::io::stdout().is_terminal() {
-                    facet_json::to_string_pretty(&output)?
-                } else {
-                    facet_json::to_string(&output)?
-                };
-                println!("{json}");
-            }
-        }
-        Ok(())
+        CliResponse::from_facet(MediaPlayerDetectNowResponse { output })
     }
 
     fn should_walk(&self) -> Result<bool> {
@@ -237,10 +232,6 @@ impl MediaPlayerDetectNowArgs {
 impl ToArgs for MediaPlayerDetectNowArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
         let mut args = Vec::new();
-        if let Some(output_format) = &self.output_format {
-            args.push("--output-format".into());
-            args.push(output_format.to_string().into());
-        }
         if let Some(walk) = &self.walk {
             args.push("--walk".into());
             args.push(walk.to_string().into());

@@ -3,6 +3,7 @@ use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::app_state::LocalRouteIdentity;
+use crate::cli::response::CliResponse;
 use crate::cli::route::RouteArgs;
 use crate::cli::route::RouteCommand;
 use crate::cli::route::listen::RouteListenArgs;
@@ -15,6 +16,7 @@ use eyre::Result;
 use eyre::bail;
 use facet::Facet;
 use figue as args;
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -31,8 +33,31 @@ pub struct RouteAddArgs {
     pub listen: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Facet)]
+pub struct RouteAddResponse {
+    name: String,
+    record_key: String,
+    profile: String,
+    initialized_offline: bool,
+}
+
+impl fmt::Display for RouteAddResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "Created route identity '{}' with record key {} for {}",
+            self.name, self.record_key, self.profile
+        )?;
+        if self.initialized_offline {
+            write!(f, "Initialized route record in offline state (empty route data).")
+        } else {
+            Ok(())
+        }
+    }
+}
+
 impl RouteAddArgs {
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         let profile_home = context.profile_home();
         if app_state::local_route_identity(profile_home, &self.name)?.is_some() {
             bail!(
@@ -75,12 +100,7 @@ impl RouteAddArgs {
             &identity.record_key,
         )?;
 
-        println!(
-            "Created route identity '{}' with record key {} for {}",
-            self.name,
-            identity.record_key,
-            profile_home.profile()
-        );
+        let record_key_text = identity.record_key.to_string();
 
         let public_internet_ready = Arc::new(AtomicBool::new(false));
         let callback = {
@@ -117,13 +137,17 @@ impl RouteAddArgs {
         let _ = router.close_dht_record(identity.record_key.clone()).await;
         api.shutdown().await;
 
-        println!("Initialized route record in offline state (empty route data).");
-
         if self.listen {
             listen_on_named_route(context, &self.name, None).await?;
+            return Ok(CliResponse::empty());
         }
 
-        Ok(())
+        CliResponse::from_facet(RouteAddResponse {
+            name: self.name,
+            record_key: record_key_text,
+            profile: profile_home.profile().to_owned(),
+            initialized_offline: true,
+        })
     }
 }
 
