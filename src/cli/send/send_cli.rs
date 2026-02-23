@@ -9,6 +9,8 @@ use std::ffi::OsString;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq)]
 pub struct SendArgs {
+    #[facet(args::positional)]
+    pub known_user: String,
     #[facet(args::subcommand)]
     pub command: SendCommand,
 }
@@ -25,7 +27,7 @@ impl SendArgs {
     /// Returns an error if the selected send subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         match self.command {
-            SendCommand::Chat(args) => args.invoke(context).await?,
+            SendCommand::Chat(args) => args.invoke(context, &self.known_user).await?,
         }
         Ok(())
     }
@@ -33,7 +35,7 @@ impl SendArgs {
 
 impl ToArgs for SendArgs {
     fn to_args(&self) -> Vec<OsString> {
-        let mut args = Vec::new();
+        let mut args = vec![self.known_user.clone().into()];
         match &self.command {
             SendCommand::Chat(chat_args) => {
                 args.push("chat".into());

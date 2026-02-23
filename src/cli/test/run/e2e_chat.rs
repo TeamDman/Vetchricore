@@ -195,9 +195,8 @@ async fn run_e2e_chat() -> Result<()> {
     std::thread::sleep(Duration::from_millis(1200));
 
     let sender_command = CliCommand::Send(SendArgs {
+        known_user: "Janet".to_owned(),
         command: SendCommand::Chat(SendChatArgs {
-            to: "to".to_owned(),
-            known_user: "Janet".to_owned(),
             message: Some("schoolbus".to_owned()),
             retry: Some(20),
         }),

@@ -28,10 +28,6 @@ use veilid_core::VeilidUpdate;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq)]
 pub struct SendChatArgs {
-    #[facet(args::positional)]
-    pub to: String,
-    #[facet(args::positional)]
-    pub known_user: String,
     #[facet(args::named)]
     pub message: Option<String>,
     #[facet(args::named)]
@@ -43,10 +39,7 @@ impl SendChatArgs {
         clippy::too_many_lines,
         reason = "chat flow combines validation, setup, and interactive send loop"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
-        if self.to != "to" {
-            bail!("Usage: send chat to <known-user> [--message <text>] [--retry <count>]");
-        }
+    pub async fn invoke(self, context: &InvokeContext, known_user: &str) -> Result<()> {
 
         let retry_attempts = self.retry.unwrap_or(1);
         if retry_attempts == 0 {
@@ -62,11 +55,11 @@ impl SendChatArgs {
                 }))
             )
         })?;
-        let known_user_key = app_state::known_user_public_key(profile_home, &self.known_user)?
+        let known_user_key = app_state::known_user_public_key(profile_home, known_user)?
             .ok_or_else(|| {
                 eyre::eyre!(
                     "Known user '{}' not found. Add them with '{}'.",
-                    self.known_user,
+                    known_user,
                     Cli::display_invocation(&crate::cli::Command::KnownUser(KnownUserArgs {
                         command: KnownUserCommand::Add(KnownUserAddArgs {
                             name: "<name>".to_owned(),
@@ -76,9 +69,9 @@ impl SendChatArgs {
                 )
             })?;
 
-        let keys = app_state::route_keys_for_known_user(profile_home, &self.known_user)?;
+        let keys = app_state::route_keys_for_known_user(profile_home, known_user)?;
         if keys.is_empty() {
-            bail!("No route record keys configured for {}.", self.known_user);
+            bail!("No route record keys configured for {}.", known_user);
         }
 
         let public_internet_ready = Arc::new(AtomicBool::new(false));
@@ -267,7 +260,7 @@ fn should_retry_key_not_found(error: &eyre::Report) -> bool {
 
 impl ToArgs for SendChatArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
-        let mut args = vec![self.to.clone().into(), self.known_user.clone().into()];
+        let mut args = vec![];
         if let Some(message) = &self.message {
             args.push("--message".into());
             args.push(message.clone().into());

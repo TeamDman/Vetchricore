@@ -25,6 +25,7 @@ use facet::Facet;
 use figue::FigueBuiltins;
 use figue::{self as args};
 use std::ffi::OsString;
+use tracing::Instrument;
 
 /// Trait for converting CLI structures to command line arguments.
 pub trait ToArgs {
@@ -120,11 +121,24 @@ impl Cli {
     /// This function will return an error if the tokio runtime cannot be built or if the command fails.
     pub fn invoke(self) -> eyre::Result<()> {
         let context = InvokeContext::resolve(&self.global)?;
+        let command_display = Self::display_invocation(&self.command);
+        let profile = context.profile_home().profile().to_owned();
+        let app_home = context.app_home().display().to_string();
+        let cache_home = context.cache_home().display().to_string();
+        let profile_home = context.profile_home().profile_dir().display().to_string();
+        let span = tracing::info_span!(
+            "invoke_command",
+            command = %command_display,
+            profile = %profile,
+            app_home = %app_home,
+            cache_home = %cache_home,
+            profile_home = %profile_home,
+        );
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .wrap_err("Failed to build tokio runtime")?;
-        runtime.block_on(async move { self.command.invoke(&context).await })?;
+        runtime.block_on(async move { self.command.invoke(&context).instrument(span).await })?;
         Ok(())
     }
 
