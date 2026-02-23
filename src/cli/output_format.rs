@@ -1,11 +1,24 @@
+use arbitrary::Arbitrary;
 use eyre::bail;
+use facet::Facet;
+use std::fmt;
 use std::io::IsTerminal;
 use std::str::FromStr;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Facet, Arbitrary)]
+#[repr(u8)]
 pub enum OutputFormat {
     Text,
     Json,
+}
+
+impl fmt::Display for OutputFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Text => f.write_str("text"),
+            Self::Json => f.write_str("json"),
+        }
+    }
 }
 
 impl FromStr for OutputFormat {
@@ -20,10 +33,20 @@ impl FromStr for OutputFormat {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Facet, Arbitrary)]
+#[repr(u8)]
 pub enum OutputFormatArg {
     Auto,
     Some(OutputFormat),
+}
+
+impl fmt::Display for OutputFormatArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Auto => f.write_str("auto"),
+            Self::Some(format) => format.fmt(f),
+        }
+    }
 }
 
 impl OutputFormatArg {

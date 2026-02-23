@@ -21,6 +21,8 @@ pub struct RouteArgs {
 #[repr(u8)]
 pub enum RouteCommand {
     Add(RouteAddArgs),
+    New(RouteAddArgs),
+    Create(RouteAddArgs),
     Listen(RouteListenArgs),
     List(RouteListArgs),
     Show(RouteShowArgs),
@@ -34,6 +36,8 @@ impl RouteArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         match self.command {
             RouteCommand::Add(args) => args.invoke(context).await?,
+            RouteCommand::New(args) => args.invoke(context).await?,
+            RouteCommand::Create(args) => args.invoke(context).await?,
             RouteCommand::Listen(args) => args.invoke(context).await?,
             RouteCommand::List(args) => args.invoke(context).await?,
             RouteCommand::Show(args) => args.invoke(context).await?,
@@ -50,6 +54,14 @@ impl ToArgs for RouteArgs {
             RouteCommand::Add(add_args) => {
                 args.push("add".into());
                 args.extend(add_args.to_args());
+            }
+            RouteCommand::New(new_args) => {
+                args.push("new".into());
+                args.extend(new_args.to_args());
+            }
+            RouteCommand::Create(create_args) => {
+                args.push("create".into());
+                args.extend(create_args.to_args());
             }
             RouteCommand::Listen(listen_args) => {
                 args.push("listen".into());

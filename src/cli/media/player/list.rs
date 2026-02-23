@@ -3,22 +3,17 @@ use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::media::player::catalog::display_name_for_key;
 use crate::cli::media::player::catalog::support_for_key;
-use crate::cli::media::player::output_format::OutputFormatArg;
-use crate::cli::media::player::output_format::OutputFormat;
+use crate::cli::output_format::OutputFormat;
+use crate::cli::output_format::OutputFormatArg;
 use arbitrary::Arbitrary;
 use color_eyre::owo_colors::OwoColorize;
 use eyre::Result;
 use facet::Facet;
-use figue as args;
 use std::io::IsTerminal;
 use tracing::debug;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
-pub struct MediaPlayerListArgs {
-    /// Output format: auto, text, json.
-    #[facet(args::named)]
-    pub output_format: Option<String>,
-}
+pub struct MediaPlayerListArgs;
 
 #[derive(Clone, Debug, PartialEq, Eq, Facet)]
 struct MediaPlayerView {
@@ -35,11 +30,9 @@ impl MediaPlayerListArgs {
         reason = "command handlers use async invoke signature consistently"
     )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
-        let output_format = self
-            .output_format
-            .as_deref()
-            .unwrap_or("auto")
-            .parse::<OutputFormatArg>()?
+        let output_format = context
+            .output_format()
+            .unwrap_or(OutputFormatArg::Auto)
             .resolve();
         debug!(
             output_format = ?output_format,
@@ -126,12 +119,5 @@ fn print_text(views: &[MediaPlayerView]) {
 }
 
 impl ToArgs for MediaPlayerListArgs {
-    fn to_args(&self) -> Vec<std::ffi::OsString> {
-        let mut args = Vec::new();
-        if let Some(output_format) = &self.output_format {
-            args.push("--output-format".into());
-            args.push(output_format.into());
-        }
-        args
-    }
+    fn to_args(&self) -> Vec<std::ffi::OsString> { Vec::new() }
 }

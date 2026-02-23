@@ -3,6 +3,7 @@ pub mod global_args;
 pub mod key;
 pub mod media;
 pub mod known_user;
+pub mod output_format;
 pub mod profile;
 pub mod route;
 pub mod send;
@@ -13,6 +14,7 @@ use crate::cli::global_args::GlobalArgs;
 use crate::cli::key::KeyArgs;
 use crate::cli::media::MediaArgs;
 use crate::cli::known_user::KnownUserArgs;
+use crate::cli::output_format::OutputFormatArg;
 use crate::cli::profile::ProfileArgs;
 use crate::cli::route::RouteArgs;
 use crate::cli::send::SendArgs;
@@ -46,6 +48,7 @@ pub struct InvokeContext {
     app_home: AppHome,
     cache_home: CacheHome,
     profile_home: app_state::ProfileHome,
+    output_format: Option<OutputFormatArg>,
 }
 
 impl InvokeContext {
@@ -62,11 +65,13 @@ impl InvokeContext {
             .as_ref()
             .map_or_else(|| CACHE_DIR.clone(), |path| CacheHome(path.clone()));
         let profile_home = app_state::resolve_profile_home(&app_home, global.profile.as_deref())?;
+        let output_format = global.output_format;
 
         Ok(Self {
             app_home,
             cache_home,
             profile_home,
+            output_format,
         })
     }
 
@@ -83,6 +88,11 @@ impl InvokeContext {
     #[must_use]
     pub fn profile_home(&self) -> &app_state::ProfileHome {
         &self.profile_home
+    }
+
+    #[must_use]
+    pub fn output_format(&self) -> Option<OutputFormatArg> {
+        self.output_format
     }
 }
 

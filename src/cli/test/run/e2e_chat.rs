@@ -456,6 +456,7 @@ fn make_global(home_dir: &Path, cache_dir: &Path, profile: Option<&str>) -> Glob
         no_veilid_logs: false,
         log_filter: None,
         log_file: None,
+        output_format: None,
     }
 }
 

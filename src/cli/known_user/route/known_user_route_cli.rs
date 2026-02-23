@@ -19,6 +19,8 @@ pub struct KnownUserRouteArgs {
 #[repr(u8)]
 pub enum KnownUserRouteCommand {
     Add(KnownUserRouteAddArgs),
+    New(KnownUserRouteAddArgs),
+    Create(KnownUserRouteAddArgs),
     List(KnownUserRouteListArgs),
     Remove(KnownUserRouteRemoveArgs),
 }
@@ -30,6 +32,8 @@ impl KnownUserRouteArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         match self.command {
             KnownUserRouteCommand::Add(args) => args.invoke(context).await?,
+            KnownUserRouteCommand::New(args) => args.invoke(context).await?,
+            KnownUserRouteCommand::Create(args) => args.invoke(context).await?,
             KnownUserRouteCommand::List(args) => args.invoke(context).await?,
             KnownUserRouteCommand::Remove(args) => args.invoke(context).await?,
         }
@@ -44,6 +48,14 @@ impl ToArgs for KnownUserRouteArgs {
             KnownUserRouteCommand::Add(add_args) => {
                 args.push("add".into());
                 args.extend(add_args.to_args());
+            }
+            KnownUserRouteCommand::New(new_args) => {
+                args.push("new".into());
+                args.extend(new_args.to_args());
+            }
+            KnownUserRouteCommand::Create(create_args) => {
+                args.push("create".into());
+                args.extend(create_args.to_args());
             }
             KnownUserRouteCommand::List(list_args) => {
                 args.push("list".into());

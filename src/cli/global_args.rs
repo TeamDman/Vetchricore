@@ -1,6 +1,7 @@
 //! Global arguments that apply to all commands.
 
 use crate::cli::ToArgs;
+use crate::cli::output_format::OutputFormatArg;
 use crate::logging::LoggingConfig;
 use arbitrary::Arbitrary;
 use chrono::Local;
@@ -41,6 +42,10 @@ pub struct GlobalArgs {
     /// Write structured ndjson logs to this file or directory.
     #[facet(args::named)]
     pub log_file: Option<PathBuf>,
+
+    /// Output format for command responses: auto, text, json.
+    #[facet(args::named)]
+    pub output_format: Option<OutputFormatArg>,
 }
 
 impl GlobalArgs {
@@ -100,6 +105,10 @@ impl ToArgs for GlobalArgs {
         if let Some(path) = &self.log_file {
             args.push("--log-file".into());
             args.push(path.as_os_str().into());
+        }
+        if let Some(output_format) = &self.output_format {
+            args.push("--output-format".into());
+            args.push(output_format.to_string().into());
         }
         args
     }

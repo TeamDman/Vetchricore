@@ -21,6 +21,8 @@ pub struct ProfileArgs {
 #[repr(u8)]
 pub enum ProfileCommand {
     Add(ProfileAddArgs),
+    New(ProfileAddArgs),
+    Create(ProfileAddArgs),
     List(ProfileListArgs),
     Use(ProfileUseArgs),
     Remove(ProfileRemoveArgs),
@@ -34,6 +36,8 @@ impl ProfileArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         match self.command {
             ProfileCommand::Add(args) => args.invoke(context).await?,
+            ProfileCommand::New(args) => args.invoke(context).await?,
+            ProfileCommand::Create(args) => args.invoke(context).await?,
             ProfileCommand::List(args) => args.invoke(context).await?,
             ProfileCommand::Use(args) => args.invoke(context).await?,
             ProfileCommand::Remove(args) => args.invoke(context).await?,
@@ -50,6 +54,14 @@ impl ToArgs for ProfileArgs {
             ProfileCommand::Add(add_args) => {
                 args.push("add".into());
                 args.extend(add_args.to_args());
+            }
+            ProfileCommand::New(new_args) => {
+                args.push("new".into());
+                args.extend(new_args.to_args());
+            }
+            ProfileCommand::Create(create_args) => {
+                args.push("create".into());
+                args.extend(create_args.to_args());
             }
             ProfileCommand::List(list_args) => {
                 args.push("list".into());

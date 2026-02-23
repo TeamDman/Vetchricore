@@ -5,27 +5,63 @@ use crate::cli::media::player::catalog::detect_media_players_by_walk;
 use crate::cli::media::player::catalog::detect_media_players_on_path;
 use crate::cli::media::player::catalog::display_name_for_key;
 use crate::cli::media::player::catalog::support_for_key;
-use crate::cli::media::player::output_format::OutputFormatArg;
-use crate::cli::media::player::output_format::OutputFormat;
+use crate::cli::output_format::OutputFormat;
+use crate::cli::output_format::OutputFormatArg;
 use arbitrary::Arbitrary;
 use color_eyre::owo_colors::OwoColorize;
 use eyre::Result;
 use facet::Facet;
 use figue as args;
+use std::fmt;
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
 use std::io::Write;
+use std::str::FromStr;
 use tracing::debug;
+
+#[derive(Facet, Arbitrary, Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum WalkMode {
+    Ask,
+    Yes,
+    No,
+}
+
+impl fmt::Display for WalkMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Ask => f.write_str("ask"),
+            Self::Yes => f.write_str("yes"),
+            Self::No => f.write_str("no"),
+        }
+    }
+}
+
+impl FromStr for WalkMode {
+    type Err = eyre::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_ascii_lowercase().as_str() {
+            "ask" => Ok(Self::Ask),
+            "yes" | "true" => Ok(Self::Yes),
+            "no" | "false" => Ok(Self::No),
+            _ => eyre::bail!(
+                "Unsupported --walk value '{}'. Use yes, no, true, false, or ask.",
+                value
+            ),
+        }
+    }
+}
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
 pub struct MediaPlayerDetectNowArgs {
     /// Output format: auto, text, json.
     #[facet(args::named)]
-    pub output_format: Option<String>,
+    pub output_format: Option<OutputFormatArg>,
 
     /// Recursively walk filesystem for media players: yes|no|true|false|ask.
     #[facet(args::named)]
-    pub walk: Option<String>,
+    pub walk: Option<WalkMode>,
 
     /// Timeout for filesystem walk (e.g. 25s, 2m).
     #[facet(args::named)]
@@ -53,9 +89,8 @@ impl MediaPlayerDetectNowArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         let output_format = self
             .output_format
-            .as_deref()
-            .unwrap_or("auto")
-            .parse::<OutputFormatArg>()?
+            .or(context.output_format())
+            .unwrap_or(OutputFormatArg::Auto)
             .resolve();
         let should_walk = self.should_walk()?;
         let walk_timeout = self.walk_timeout_duration()?;
@@ -151,13 +186,8 @@ impl MediaPlayerDetectNowArgs {
     }
 
     fn should_walk(&self) -> Result<bool> {
-        match self
-            .walk
-            .as_deref()
-            .map(str::to_ascii_lowercase)
-            .as_deref()
-        {
-            None | Some("ask") => {
+        match self.walk.unwrap_or(WalkMode::Ask) {
+            WalkMode::Ask => {
                 if !std::io::stdout().is_terminal() {
                     return Ok(false);
                 }
@@ -171,12 +201,8 @@ impl MediaPlayerDetectNowArgs {
                 std::io::stdin().read_line(&mut answer)?;
                 Ok(matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes"))
             }
-            Some("yes") | Some("true") => Ok(true),
-            Some("no") | Some("false") => Ok(false),
-            Some(other) => eyre::bail!(
-                "Unsupported --walk value '{}'. Use yes, no, true, false, or ask.",
-                other
-            ),
+            WalkMode::Yes => Ok(true),
+            WalkMode::No => Ok(false),
         }
     }
 
@@ -213,11 +239,11 @@ impl ToArgs for MediaPlayerDetectNowArgs {
         let mut args = Vec::new();
         if let Some(output_format) = &self.output_format {
             args.push("--output-format".into());
-            args.push(output_format.into());
+            args.push(output_format.to_string().into());
         }
         if let Some(walk) = &self.walk {
             args.push("--walk".into());
-            args.push(walk.into());
+            args.push(walk.to_string().into());
         }
         if let Some(walk_timeout) = &self.walk_timeout {
             args.push("--walk-timeout".into());

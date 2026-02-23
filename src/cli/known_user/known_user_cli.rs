@@ -22,6 +22,8 @@ pub struct KnownUserArgs {
 pub enum KnownUserCommand {
     List(KnownUserListArgs),
     Add(KnownUserAddArgs),
+    New(KnownUserAddArgs),
+    Create(KnownUserAddArgs),
     Rename(KnownUserRenameArgs),
     Remove(KnownUserRemoveArgs),
     Route(KnownUserRouteArgs),
@@ -35,6 +37,8 @@ impl KnownUserArgs {
         match self.command {
             KnownUserCommand::List(args) => args.invoke(context).await?,
             KnownUserCommand::Add(args) => args.invoke(context).await?,
+            KnownUserCommand::New(args) => args.invoke(context).await?,
+            KnownUserCommand::Create(args) => args.invoke(context).await?,
             KnownUserCommand::Rename(args) => args.invoke(context).await?,
             KnownUserCommand::Remove(args) => args.invoke(context).await?,
             KnownUserCommand::Route(args) => args.invoke(context).await?,
@@ -54,6 +58,14 @@ impl ToArgs for KnownUserArgs {
             KnownUserCommand::Add(add_args) => {
                 args.push("add".into());
                 args.extend(add_args.to_args());
+            }
+            KnownUserCommand::New(new_args) => {
+                args.push("new".into());
+                args.extend(new_args.to_args());
+            }
+            KnownUserCommand::Create(create_args) => {
+                args.push("create".into());
+                args.extend(create_args.to_args());
             }
             KnownUserCommand::Rename(rename_args) => {
                 args.push("rename".into());
