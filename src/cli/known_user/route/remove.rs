@@ -99,4 +99,3 @@ impl ToArgs for KnownUserRouteRemoveArgs {
         args
     }
 }
-

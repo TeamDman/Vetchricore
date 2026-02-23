@@ -107,4 +107,3 @@ impl ToArgs for RouteRemoveArgs {
         vec![self.name.clone().into()]
     }
 }
-

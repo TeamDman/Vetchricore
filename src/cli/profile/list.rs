@@ -92,4 +92,3 @@ impl ToArgs for ProfileListArgs {
         }
     }
 }
-

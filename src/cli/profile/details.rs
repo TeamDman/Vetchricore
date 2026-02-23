@@ -25,7 +25,10 @@ fn push_line(buffer: &mut String, line: &str) {
 /// # Errors
 ///
 /// Returns an error if profile metadata cannot be loaded.
-pub(super) fn format_detailed_profile(profile_home: &ProfileHome, is_active: bool) -> Result<String> {
+pub(super) fn format_detailed_profile(
+    profile_home: &ProfileHome,
+    is_active: bool,
+) -> Result<String> {
     let mut out = String::new();
 
     let profile = profile_home.profile();
@@ -65,7 +68,10 @@ pub(super) fn format_detailed_profile(profile_home: &ProfileHome, is_active: boo
         push_line(&mut out, &format!("    {}", paint(DIM, "<none>")));
     } else {
         for known_user in &known_users {
-            push_line(&mut out, &format!("    {} ({})", known_user.name, known_user.pubkey));
+            push_line(
+                &mut out,
+                &format!("    {} ({})", known_user.name, known_user.pubkey),
+            );
         }
     }
 
@@ -82,14 +88,21 @@ pub(super) fn format_detailed_profile(profile_home: &ProfileHome, is_active: boo
         push_line(&mut out, &format!("    {}", paint(DIM, "<none>")));
     } else {
         for route in &known_user_routes {
-            push_line(&mut out, &format!("    {} -> {}", route.known_user, route.record_key));
+            push_line(
+                &mut out,
+                &format!("    {} -> {}", route.known_user, route.record_key),
+            );
         }
     }
 
     let listen_routes = app_state::list_local_route_identities(profile_home)?;
     push_line(
         &mut out,
-        &format!("  {} {}", paint(YELLOW, "listen routes:"), listen_routes.len()),
+        &format!(
+            "  {} {}",
+            paint(YELLOW, "listen routes:"),
+            listen_routes.len()
+        ),
     );
     if listen_routes.is_empty() {
         push_line(&mut out, &format!("    {}", paint(DIM, "<none>")));
@@ -98,15 +111,22 @@ pub(super) fn format_detailed_profile(profile_home: &ProfileHome, is_active: boo
             push_line(&mut out, &format!("    {}", route.name));
             push_line(
                 &mut out,
-                &format!("      {} {}", paint(MAGENTA, "record key:"), route.record_key),
+                &format!(
+                    "      {} {}",
+                    paint(MAGENTA, "record key:"),
+                    route.record_key
+                ),
             );
             push_line(
                 &mut out,
-                &format!("      {} {}", paint(MAGENTA, "public key:"), route.keypair.key()),
+                &format!(
+                    "      {} {}",
+                    paint(MAGENTA, "public key:"),
+                    route.keypair.key()
+                ),
             );
         }
     }
 
     Ok(out)
 }
-

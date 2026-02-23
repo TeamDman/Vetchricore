@@ -110,6 +110,7 @@ impl MediaPlayerListArgs {
 }
 
 impl ToArgs for MediaPlayerListArgs {
-    fn to_args(&self) -> Vec<std::ffi::OsString> { Vec::new() }
+    fn to_args(&self) -> Vec<std::ffi::OsString> {
+        Vec::new()
+    }
 }
-

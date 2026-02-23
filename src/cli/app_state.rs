@@ -722,10 +722,7 @@ pub fn default_media_player(profile_home: &ProfileHome) -> Result<Option<String>
     }
 
     validate_media_player_key(&key)?;
-    debug!(
-        media_player_key = key,
-        "loaded default media player"
-    );
+    debug!(media_player_key = key, "loaded default media player");
     Ok(Some(key))
 }
 
@@ -839,7 +836,10 @@ fn default_media_player_file(profile_home: &ProfileHome) -> PathBuf {
     profile_home.profile_dir().join(DEFAULT_MEDIA_PLAYER_FILE)
 }
 
-fn write_media_players_file(profile_home: &ProfileHome, players: &[MediaPlayerEntry]) -> Result<()> {
+fn write_media_players_file(
+    profile_home: &ProfileHome,
+    players: &[MediaPlayerEntry],
+) -> Result<()> {
     let lines = players
         .iter()
         .map(|entry| format!("{}\t{}", entry.key, entry.path.display()))

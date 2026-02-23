@@ -10,8 +10,8 @@ use color_eyre::owo_colors::OwoColorize;
 use eyre::Result;
 use facet::Facet;
 use figue as args;
-use std::fmt;
 use std::collections::BTreeSet;
+use std::fmt;
 use std::io::IsTerminal;
 use std::io::Write;
 use std::str::FromStr;
@@ -31,6 +31,17 @@ impl fmt::Display for WalkMode {
             Self::Ask => f.write_str("ask"),
             Self::Yes => f.write_str("yes"),
             Self::No => f.write_str("no"),
+        }
+    }
+}
+
+impl WalkMode {
+    #[must_use]
+    pub fn as_cli_token(self) -> &'static str {
+        match self {
+            Self::Ask => "Ask",
+            Self::Yes => "Yes",
+            Self::No => "No",
         }
     }
 }
@@ -116,10 +127,6 @@ impl fmt::Display for MediaPlayerDetectNowResponse {
 }
 
 impl MediaPlayerDetectNowArgs {
-    #[expect(
-        clippy::unused_async,
-        reason = "command handlers use async invoke signature consistently"
-    )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<MediaPlayerDetectNowResponse> {
         let should_walk = self.should_walk()?;
         let walk_timeout = self.walk_timeout_duration()?;
@@ -138,7 +145,7 @@ impl MediaPlayerDetectNowArgs {
             .collect::<BTreeSet<_>>();
 
         let mut dedup = BTreeSet::<(String, std::path::PathBuf)>::new();
-        for player in detect_media_players_on_path()? {
+        for player in detect_media_players_on_path() {
             dedup.insert((player.key, player.path));
         }
         debug!(
@@ -193,7 +200,10 @@ impl MediaPlayerDetectNowArgs {
                 stdout.flush()?;
                 let mut answer = String::new();
                 std::io::stdin().read_line(&mut answer)?;
-                Ok(matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes"))
+                Ok(matches!(
+                    answer.trim().to_ascii_lowercase().as_str(),
+                    "y" | "yes"
+                ))
             }
             WalkMode::Yes => Ok(true),
             WalkMode::No => Ok(false),
@@ -233,7 +243,7 @@ impl ToArgs for MediaPlayerDetectNowArgs {
         let mut args = Vec::new();
         if let Some(walk) = &self.walk {
             args.push("--walk".into());
-            args.push(walk.to_string().into());
+            args.push(walk.as_cli_token().into());
         }
         if let Some(walk_timeout) = &self.walk_timeout {
             args.push("--walk-timeout".into());
@@ -246,4 +256,3 @@ impl ToArgs for MediaPlayerDetectNowArgs {
         args
     }
 }
-

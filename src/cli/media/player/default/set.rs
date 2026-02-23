@@ -42,4 +42,3 @@ impl ToArgs for MediaPlayerDefaultSetArgs {
         vec![self.key.clone().into()]
     }
 }
-

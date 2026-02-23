@@ -55,4 +55,3 @@ impl KeyGenArgs {
 }
 
 impl ToArgs for KeyGenArgs {}
-

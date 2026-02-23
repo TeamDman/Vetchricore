@@ -24,7 +24,7 @@ pub enum ProfileShowResponse {
 impl fmt::Display for ProfileShowResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Summary { profile } => write!(f, "You are using {}.", profile),
+            Self::Summary { profile } => write!(f, "You are using {profile}."),
             Self::Detailed { text } => f.write_str(text),
         }
     }
@@ -37,19 +37,16 @@ impl ProfileShowArgs {
     )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<ProfileShowResponse> {
         let profile_home = context.profile_home();
-        if self.detailed {
+        Ok(if self.detailed {
             let active = app_state::current_active_profile(context.app_home())?;
-            return Ok(ProfileShowResponse::Detailed {
-                text: format_detailed_profile(
-                profile_home,
-                profile_home.profile() == active,
-            )?,
-            });
+            ProfileShowResponse::Detailed {
+                text: format_detailed_profile(profile_home, profile_home.profile() == active)?,
+            }
         } else {
-            return Ok(ProfileShowResponse::Summary {
+            ProfileShowResponse::Summary {
                 profile: profile_home.profile().to_owned(),
-            });
-        }
+            }
+        })
     }
 }
 
@@ -62,4 +59,3 @@ impl ToArgs for ProfileShowArgs {
         }
     }
 }
-

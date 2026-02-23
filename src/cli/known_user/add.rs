@@ -45,4 +45,3 @@ impl ToArgs for KnownUserAddArgs {
         vec![self.name.clone().into(), self.pubkey.clone().into()]
     }
 }
-

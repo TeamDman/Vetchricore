@@ -40,15 +40,16 @@ impl MediaPlayerArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         Ok(match self.command {
             MediaPlayerCommand::List(args) => args.invoke(context).await?.into(),
-            MediaPlayerCommand::Add(args) => args.invoke(context).await?.into(),
-            MediaPlayerCommand::New(args) => args.invoke(context).await?.into(),
-            MediaPlayerCommand::Set(args) => args.invoke(context).await?.into(),
-            MediaPlayerCommand::Update(args) => args.invoke(context).await?.into(),
-            MediaPlayerCommand::Create(args) => args.invoke(context).await?.into(),
+            MediaPlayerCommand::Add(args)
+            | MediaPlayerCommand::New(args)
+            | MediaPlayerCommand::Set(args)
+            | MediaPlayerCommand::Update(args)
+            | MediaPlayerCommand::Create(args) => args.invoke(context).await?.into(),
             MediaPlayerCommand::Show(args) => args.invoke(context).await?.into(),
             MediaPlayerCommand::Default(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Detect(args) => args.invoke(context).await?,
-            MediaPlayerCommand::Discover(args) => args.invoke(context).await?,
+            MediaPlayerCommand::Detect(args) | MediaPlayerCommand::Discover(args) => {
+                args.invoke(context).await?
+            }
         })
     }
 }

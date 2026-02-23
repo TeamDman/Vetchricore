@@ -56,8 +56,7 @@ impl ToArgs for MediaPlayerAddArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
         vec![
             self.key.clone().into(),
-            self.path.as_os_str().to_os_string().into(),
+            self.path.as_os_str().to_os_string(),
         ]
     }
 }
-

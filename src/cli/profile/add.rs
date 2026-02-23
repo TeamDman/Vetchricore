@@ -41,4 +41,3 @@ impl ToArgs for ProfileAddArgs {
         vec![self.name.clone().into()]
     }
 }
-

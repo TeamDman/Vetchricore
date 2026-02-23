@@ -57,4 +57,3 @@ impl RouteListArgs {
 }
 
 impl ToArgs for RouteListArgs {}
-

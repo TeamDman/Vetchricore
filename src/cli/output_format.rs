@@ -43,19 +43,33 @@ impl FromStr for OutputFormat {
 #[repr(u8)]
 pub enum OutputFormatArg {
     Auto,
-    Some(OutputFormat),
+    Text,
+    Json,
+    PrettyJson,
 }
 
 impl fmt::Display for OutputFormatArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Auto => f.write_str("auto"),
-            Self::Some(format) => format.fmt(f),
+            Self::Text => f.write_str("text"),
+            Self::Json => f.write_str("json"),
+            Self::PrettyJson => f.write_str("pretty-json"),
         }
     }
 }
 
 impl OutputFormatArg {
+    #[must_use]
+    pub fn as_cli_token(self) -> &'static str {
+        match self {
+            Self::Auto => "Auto",
+            Self::Text => "Text",
+            Self::Json => "Json",
+            Self::PrettyJson => "PrettyJson",
+        }
+    }
+
     #[must_use]
     pub fn resolve(self) -> OutputFormat {
         match self {
@@ -66,7 +80,9 @@ impl OutputFormatArg {
                     OutputFormat::PrettyJson
                 }
             }
-            Self::Some(format) => format,
+            Self::Text => OutputFormat::Text,
+            Self::Json => OutputFormat::Json,
+            Self::PrettyJson => OutputFormat::PrettyJson,
         }
     }
 }
@@ -77,7 +93,13 @@ impl FromStr for OutputFormatArg {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.to_ascii_lowercase().as_str() {
             "auto" => Ok(Self::Auto),
-            _ => Ok(Self::Some(value.parse::<OutputFormat>()?)),
+            "text" => Ok(Self::Text),
+            "json" => Ok(Self::Json),
+            "pretty-json" | "pretty_json" | "prettyjson" => Ok(Self::PrettyJson),
+            _ => bail!(
+                "Unsupported output format '{}'. Use auto, text, json, or pretty-json.",
+                value
+            ),
         }
     }
 }

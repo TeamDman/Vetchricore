@@ -44,6 +44,9 @@ impl CliResponse {
         Self::default()
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if response serialization to the selected output format fails.
     pub fn write(self, output_format: OutputFormat) -> Result<()> {
         if let Some(renderer) = self.renderer {
             let body = renderer.render(output_format)?;

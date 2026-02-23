@@ -1,8 +1,8 @@
 pub mod app_state;
 pub mod global_args;
 pub mod key;
-pub mod media;
 pub mod known_user;
+pub mod media;
 pub mod output_format;
 pub mod profile;
 pub mod response;
@@ -13,8 +13,8 @@ pub mod veilid_runtime;
 
 use crate::cli::global_args::GlobalArgs;
 use crate::cli::key::KeyArgs;
-use crate::cli::media::MediaArgs;
 use crate::cli::known_user::KnownUserArgs;
+use crate::cli::media::MediaArgs;
 use crate::cli::output_format::OutputFormatArg;
 use crate::cli::profile::ProfileArgs;
 use crate::cli::response::CliResponse;
@@ -42,10 +42,6 @@ pub trait ToArgs {
 }
 
 #[derive(Clone, Debug)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "context fields are intentionally grouped by *_home semantics"
-)]
 pub struct InvokeContext {
     app_home: AppHome,
     cache_home: CacheHome,
@@ -156,8 +152,8 @@ impl Cli {
             .enable_all()
             .build()
             .wrap_err("Failed to build tokio runtime")?;
-        let response =
-            runtime.block_on(async move { self.command.invoke(&context).instrument(span).await })?;
+        let response = runtime
+            .block_on(async move { self.command.invoke(&context).instrument(span).await })?;
         response.write(output_format)?;
         Ok(())
     }

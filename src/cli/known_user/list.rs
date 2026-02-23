@@ -57,4 +57,3 @@ impl KnownUserListArgs {
 }
 
 impl ToArgs for KnownUserListArgs {}
-

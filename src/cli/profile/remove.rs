@@ -5,9 +5,9 @@ use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
 use figue as args;
+use std::fmt;
 use std::io;
 use std::io::Write;
-use std::fmt;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq)]
 pub struct ProfileRemoveArgs {
@@ -68,4 +68,3 @@ impl ToArgs for ProfileRemoveArgs {
         args
     }
 }
-

@@ -40,4 +40,3 @@ impl ToArgs for KnownUserRemoveArgs {
         vec![self.name.clone().into()]
     }
 }
-

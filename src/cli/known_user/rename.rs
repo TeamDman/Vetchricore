@@ -23,7 +23,11 @@ pub struct KnownUserRenameResponse {
 
 impl fmt::Display for KnownUserRenameResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} has been renamed to {}.", self.old_name, self.new_name)
+        write!(
+            f,
+            "{} has been renamed to {}.",
+            self.old_name, self.new_name
+        )
     }
 }
 
@@ -46,4 +50,3 @@ impl ToArgs for KnownUserRenameArgs {
         vec![self.old_name.clone().into(), self.new_name.clone().into()]
     }
 }
-

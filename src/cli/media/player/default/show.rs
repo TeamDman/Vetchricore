@@ -54,4 +54,3 @@ impl MediaPlayerDefaultShowArgs {
 }
 
 impl ToArgs for MediaPlayerDefaultShowArgs {}
-

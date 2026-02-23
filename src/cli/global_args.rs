@@ -108,7 +108,7 @@ impl ToArgs for GlobalArgs {
         }
         if let Some(output_format) = &self.output_format {
             args.push("--output-format".into());
-            args.push(output_format.to_string().into());
+            args.push(output_format.as_cli_token().into());
         }
         args
     }

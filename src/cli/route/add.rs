@@ -48,7 +48,10 @@ impl fmt::Display for RouteAddResponse {
             self.name, self.record_key, self.profile
         )?;
         if self.initialized_offline {
-            write!(f, "Initialized route record in offline state (empty route data).")
+            write!(
+                f,
+                "Initialized route record in offline state (empty route data)."
+            )
         } else {
             Ok(())
         }
@@ -158,4 +161,3 @@ impl ToArgs for RouteAddArgs {
         args
     }
 }
-

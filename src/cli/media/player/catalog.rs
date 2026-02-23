@@ -111,9 +111,7 @@ pub fn canonical_media_player_key(input: &str) -> String {
 
 #[must_use]
 pub fn display_name_for_key(key: &str) -> String {
-    known_media_player(key)
-        .map(|player| player.display_name.to_owned())
-        .unwrap_or_else(|| key.to_owned())
+    known_media_player(key).map_or_else(|| key.to_owned(), |player| player.display_name.to_owned())
 }
 
 #[must_use]
@@ -121,10 +119,7 @@ pub fn support_for_key(key: &str) -> bool {
     known_media_player(key).is_some_and(|player| player.supported)
 }
 
-/// # Errors
-///
-/// Returns an error if reading environment variables or canonicalizing paths fails.
-pub fn detect_media_players_on_path() -> eyre::Result<Vec<DetectedMediaPlayer>> {
+pub fn detect_media_players_on_path() -> Vec<DetectedMediaPlayer> {
     let mut detected = BTreeSet::<(String, PathBuf)>::new();
     let mut path_dirs = Vec::new();
     if let Some(path_var) = std::env::var_os("PATH") {
@@ -157,7 +152,7 @@ pub fn detect_media_players_on_path() -> eyre::Result<Vec<DetectedMediaPlayer>> 
         detected_count = detected.len(),
         "completed PATH media player detection"
     );
-    Ok(detected)
+    detected
 }
 
 /// # Errors
@@ -195,7 +190,8 @@ pub async fn detect_media_players_by_walk(
 
         let mut next_frontier = Vec::new();
         while !join_set.is_empty() {
-            let Ok(next_result) = tokio::time::timeout_at(deadline, join_set.join_next()).await else {
+            let Ok(next_result) = tokio::time::timeout_at(deadline, join_set.join_next()).await
+            else {
                 let detected = detected
                     .into_iter()
                     .map(|(key, path)| DetectedMediaPlayer { key, path })

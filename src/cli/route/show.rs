@@ -53,4 +53,3 @@ impl ToArgs for RouteShowArgs {
         vec![self.name.clone().into()]
     }
 }
-

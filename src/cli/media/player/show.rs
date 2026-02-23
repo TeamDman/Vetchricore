@@ -67,4 +67,3 @@ impl ToArgs for MediaPlayerShowArgs {
         vec![self.key.clone().into()]
     }
 }
-

@@ -37,9 +37,9 @@ impl KnownUserArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         Ok(match self.command {
             KnownUserCommand::List(args) => args.invoke(context).await?.into(),
-            KnownUserCommand::Add(args) => args.invoke(context).await?.into(),
-            KnownUserCommand::New(args) => args.invoke(context).await?.into(),
-            KnownUserCommand::Create(args) => args.invoke(context).await?.into(),
+            KnownUserCommand::Add(args)
+            | KnownUserCommand::New(args)
+            | KnownUserCommand::Create(args) => args.invoke(context).await?.into(),
             KnownUserCommand::Rename(args) => args.invoke(context).await?.into(),
             KnownUserCommand::Remove(args) => args.invoke(context).await?.into(),
             KnownUserCommand::Route(args) => args.invoke(context).await?,

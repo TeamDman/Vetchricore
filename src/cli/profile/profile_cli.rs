@@ -36,9 +36,9 @@ impl ProfileArgs {
     /// Returns an error if the selected profile subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
         Ok(match self.command {
-            ProfileCommand::Add(args) => args.invoke(context).await?.into(),
-            ProfileCommand::New(args) => args.invoke(context).await?.into(),
-            ProfileCommand::Create(args) => args.invoke(context).await?.into(),
+            ProfileCommand::Add(args)
+            | ProfileCommand::New(args)
+            | ProfileCommand::Create(args) => args.invoke(context).await?.into(),
             ProfileCommand::List(args) => args.invoke(context).await?.into(),
             ProfileCommand::Use(args) => args.invoke(context).await?.into(),
             ProfileCommand::Remove(args) => args.invoke(context).await?.into(),
