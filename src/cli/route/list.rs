@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -42,7 +41,7 @@ impl RouteListArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<RouteListResponse> {
         let routes = app_state::list_local_route_identities(context.profile_home())?;
         let response = RouteListResponse {
             routes: routes
@@ -53,7 +52,7 @@ impl RouteListArgs {
                 })
                 .collect(),
         };
-        Ok(response.into())
+        Ok(response)
     }
 }
 

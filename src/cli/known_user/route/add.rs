@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -38,14 +37,13 @@ impl KnownUserRouteAddArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<KnownUserRouteAddResponse> {
         let key = self.record_key.parse::<RecordKey>()?;
         app_state::add_route_key(context.profile_home(), &self.known_user, &key)?;
         Ok(KnownUserRouteAddResponse {
             known_user: self.known_user,
             profile: context.profile_home().profile().to_owned(),
-        }
-        .into())
+        })
     }
 }
 

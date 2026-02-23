@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -30,9 +29,9 @@ impl KnownUserRemoveArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<KnownUserRemoveResponse> {
         app_state::remove_known_user(context.profile_home(), &self.name)?;
-        Ok(KnownUserRemoveResponse { name: self.name }.into())
+        Ok(KnownUserRemoveResponse { name: self.name })
     }
 }
 

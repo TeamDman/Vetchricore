@@ -2,7 +2,6 @@ use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::profile::details::format_detailed_profile;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -16,13 +15,18 @@ pub struct ProfileShowArgs {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Facet)]
-pub struct ProfileShowResponse {
-    profile: String,
+#[repr(u8)]
+pub enum ProfileShowResponse {
+    Summary { profile: String },
+    Detailed { text: String },
 }
 
 impl fmt::Display for ProfileShowResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "You are using {}.", self.profile)
+        match self {
+            Self::Summary { profile } => write!(f, "You are using {}.", profile),
+            Self::Detailed { text } => f.write_str(text),
+        }
     }
 }
 
@@ -31,20 +35,20 @@ impl ProfileShowArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<ProfileShowResponse> {
         let profile_home = context.profile_home();
         if self.detailed {
             let active = app_state::current_active_profile(context.app_home())?;
-            return Ok(format_detailed_profile(
+            return Ok(ProfileShowResponse::Detailed {
+                text: format_detailed_profile(
                 profile_home,
                 profile_home.profile() == active,
-            )?
-            .into());
+            )?,
+            });
         } else {
-            return Ok(ProfileShowResponse {
+            return Ok(ProfileShowResponse::Summary {
                 profile: profile_home.profile().to_owned(),
-            }
-            .into());
+            });
         }
     }
 }

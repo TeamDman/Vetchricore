@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -30,10 +29,10 @@ impl ProfileAddArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<ProfileAddResponse> {
         app_state::ensure_initialized(context.app_home())?;
         app_state::create_profile(context.app_home(), &self.name)?;
-        Ok(ProfileAddResponse { name: self.name }.into())
+        Ok(ProfileAddResponse { name: self.name })
     }
 }
 

@@ -29,11 +29,11 @@ impl KeyArgs {
     ///
     /// Returns an error if the selected key subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
-        match self.command {
-            KeyCommand::Gen(args) => args.invoke(context).await,
-            KeyCommand::Show(args) => args.invoke(context).await,
-            KeyCommand::Remove(args) => args.invoke(context).await,
-        }
+        Ok(match self.command {
+            KeyCommand::Gen(args) => args.invoke(context).await?.into(),
+            KeyCommand::Show(args) => args.invoke(context).await?.into(),
+            KeyCommand::Remove(args) => args.invoke(context).await?.into(),
+        })
     }
 }
 

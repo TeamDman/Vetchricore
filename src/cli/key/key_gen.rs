@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use crate::cli::veilid_runtime::printing_update_callback;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
@@ -32,7 +31,7 @@ impl fmt::Display for KeyGenResponse {
 }
 
 impl KeyGenArgs {
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<KeyGenResponse> {
         let profile_home = context.profile_home();
         if app_state::load_keypair(profile_home)?.is_some() {
             bail!("You already have a keypair.");
@@ -51,8 +50,7 @@ impl KeyGenArgs {
         Ok(KeyGenResponse {
             public_key: keypair.key().to_string(),
             private_key_hidden: true,
-        }
-        .into())
+        })
     }
 }
 

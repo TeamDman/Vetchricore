@@ -38,18 +38,18 @@ impl MediaPlayerArgs {
     ///
     /// Returns an error if the selected media-player subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
-        match self.command {
-            MediaPlayerCommand::List(args) => args.invoke(context).await,
-            MediaPlayerCommand::Add(args) => args.invoke(context).await,
-            MediaPlayerCommand::New(args) => args.invoke(context).await,
-            MediaPlayerCommand::Set(args) => args.invoke(context).await,
-            MediaPlayerCommand::Update(args) => args.invoke(context).await,
-            MediaPlayerCommand::Create(args) => args.invoke(context).await,
-            MediaPlayerCommand::Show(args) => args.invoke(context).await,
-            MediaPlayerCommand::Default(args) => args.invoke(context).await,
-            MediaPlayerCommand::Detect(args) => args.invoke(context).await,
-            MediaPlayerCommand::Discover(args) => args.invoke(context).await,
-        }
+        Ok(match self.command {
+            MediaPlayerCommand::List(args) => args.invoke(context).await?.into(),
+            MediaPlayerCommand::Add(args) => args.invoke(context).await?.into(),
+            MediaPlayerCommand::New(args) => args.invoke(context).await?.into(),
+            MediaPlayerCommand::Set(args) => args.invoke(context).await?.into(),
+            MediaPlayerCommand::Update(args) => args.invoke(context).await?.into(),
+            MediaPlayerCommand::Create(args) => args.invoke(context).await?.into(),
+            MediaPlayerCommand::Show(args) => args.invoke(context).await?.into(),
+            MediaPlayerCommand::Default(args) => args.invoke(context).await?,
+            MediaPlayerCommand::Detect(args) => args.invoke(context).await?,
+            MediaPlayerCommand::Discover(args) => args.invoke(context).await?,
+        })
     }
 }
 

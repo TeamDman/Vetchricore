@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -35,19 +34,17 @@ impl ProfileRemoveArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<ProfileRemoveResponse> {
         app_state::ensure_initialized(context.app_home())?;
         if !self.yes && !confirm_remove(&self.name)? {
             return Ok(ProfileRemoveResponse {
                 message: "Aborted profile removal.".to_owned(),
-            }
-            .into());
+            });
         }
         app_state::remove_profile(context.app_home(), &self.name)?;
         Ok(ProfileRemoveResponse {
             message: format!("{} has been destroyed.", self.name),
-        }
-        .into())
+        })
     }
 }
 

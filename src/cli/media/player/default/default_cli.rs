@@ -27,10 +27,10 @@ impl MediaPlayerDefaultArgs {
     ///
     /// Returns an error if the selected default subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
-        match self.command {
-            MediaPlayerDefaultCommand::Set(args) => args.invoke(context).await,
-            MediaPlayerDefaultCommand::Show(args) => args.invoke(context).await,
-        }
+        Ok(match self.command {
+            MediaPlayerDefaultCommand::Set(args) => args.invoke(context).await?.into(),
+            MediaPlayerDefaultCommand::Show(args) => args.invoke(context).await?.into(),
+        })
     }
 }
 

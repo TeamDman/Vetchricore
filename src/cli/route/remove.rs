@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -37,7 +36,7 @@ impl RouteRemoveArgs {
     ///
     /// Returns an error if the route does not exist, network readiness cannot be reached,
     /// DHT cleanup fails, or route identity persistence update fails.
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<RouteRemoveResponse> {
         let profile_home = context.profile_home();
         let identity = app_state::local_route_identity(profile_home, &self.name)?
             .ok_or_else(|| eyre::eyre!("Route '{}' does not exist.", self.name))?;
@@ -73,7 +72,7 @@ impl RouteRemoveArgs {
         api.shutdown().await;
 
         app_state::remove_local_route_identity(profile_home, &self.name)?;
-        Ok(RouteRemoveResponse { name: self.name }.into())
+        Ok(RouteRemoveResponse { name: self.name })
     }
 }
 

@@ -2,7 +2,6 @@ use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::profile::details::format_detailed_profile;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -22,23 +21,30 @@ pub struct ProfileListItem {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Facet)]
-pub struct ProfileListResponse {
-    profiles: Vec<ProfileListItem>,
+#[repr(u8)]
+pub enum ProfileListResponse {
+    Compact { profiles: Vec<ProfileListItem> },
+    Detailed { text: String },
 }
 
 impl fmt::Display for ProfileListResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (index, profile) in self.profiles.iter().enumerate() {
-            if index > 0 {
-                writeln!(f)?;
+        match self {
+            Self::Compact { profiles } => {
+                for (index, profile) in profiles.iter().enumerate() {
+                    if index > 0 {
+                        writeln!(f)?;
+                    }
+                    if profile.active {
+                        write!(f, "{} (active)", profile.name)?;
+                    } else {
+                        write!(f, "{}", profile.name)?;
+                    }
+                }
+                Ok(())
             }
-            if profile.active {
-                write!(f, "{} (active)", profile.name)?;
-            } else {
-                write!(f, "{}", profile.name)?;
-            }
+            Self::Detailed { text } => f.write_str(text),
         }
-        Ok(())
     }
 }
 
@@ -47,7 +53,7 @@ impl ProfileListArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<ProfileListResponse> {
         app_state::ensure_initialized(context.app_home())?;
         let active = app_state::current_active_profile(context.app_home())?;
         let profiles = app_state::list_profiles(context.app_home())?;
@@ -58,10 +64,12 @@ impl ProfileListArgs {
                 let profile_home = app_state::profile_home(context.app_home(), &profile)?;
                 blocks.push(format_detailed_profile(&profile_home, profile == active)?);
             }
-            return Ok(blocks.join("\n\n").into());
+            return Ok(ProfileListResponse::Detailed {
+                text: blocks.join("\n\n"),
+            });
         }
 
-        let response = ProfileListResponse {
+        let response = ProfileListResponse::Compact {
             profiles: profiles
                 .into_iter()
                 .map(|name| ProfileListItem {
@@ -71,7 +79,7 @@ impl ProfileListArgs {
                 .collect(),
         };
 
-        Ok(response.into())
+        Ok(response)
     }
 }
 

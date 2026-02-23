@@ -25,9 +25,9 @@ impl MediaPlayerDetectArgs {
     ///
     /// Returns an error if the selected detect subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
-        match self.command {
-            MediaPlayerDetectCommand::Now(args) => args.invoke(context).await,
-        }
+        Ok(match self.command {
+            MediaPlayerDetectCommand::Now(args) => args.invoke(context).await?.into(),
+        })
     }
 }
 

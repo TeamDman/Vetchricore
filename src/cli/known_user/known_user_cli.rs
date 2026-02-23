@@ -35,15 +35,15 @@ impl KnownUserArgs {
     ///
     /// Returns an error if the selected known-user subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
-        match self.command {
-            KnownUserCommand::List(args) => args.invoke(context).await,
-            KnownUserCommand::Add(args) => args.invoke(context).await,
-            KnownUserCommand::New(args) => args.invoke(context).await,
-            KnownUserCommand::Create(args) => args.invoke(context).await,
-            KnownUserCommand::Rename(args) => args.invoke(context).await,
-            KnownUserCommand::Remove(args) => args.invoke(context).await,
-            KnownUserCommand::Route(args) => args.invoke(context).await,
-        }
+        Ok(match self.command {
+            KnownUserCommand::List(args) => args.invoke(context).await?.into(),
+            KnownUserCommand::Add(args) => args.invoke(context).await?.into(),
+            KnownUserCommand::New(args) => args.invoke(context).await?.into(),
+            KnownUserCommand::Create(args) => args.invoke(context).await?.into(),
+            KnownUserCommand::Rename(args) => args.invoke(context).await?.into(),
+            KnownUserCommand::Remove(args) => args.invoke(context).await?.into(),
+            KnownUserCommand::Route(args) => args.invoke(context).await?,
+        })
     }
 }
 

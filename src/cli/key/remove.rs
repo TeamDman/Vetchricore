@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -27,7 +26,7 @@ impl KeyRemoveArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<KeyRemoveResponse> {
         let mut stdout = std::io::stdout();
         write!(stdout, "Are you sure? y/N: ")?;
         stdout.flush()?;
@@ -36,8 +35,7 @@ impl KeyRemoveArgs {
         if !answer.trim().eq_ignore_ascii_case("y") {
             return Ok(KeyRemoveResponse {
                 message: "Aborted key removal.".to_owned(),
-            }
-            .into());
+            });
         }
 
         write!(
@@ -50,15 +48,13 @@ impl KeyRemoveArgs {
         if answer.trim() != "Yes, I'm sure." {
             return Ok(KeyRemoveResponse {
                 message: "Aborted key removal.".to_owned(),
-            }
-            .into());
+            });
         }
 
         app_state::remove_keypair(context.profile_home())?;
         Ok(KeyRemoveResponse {
             message: "Key has been removed.".to_owned(),
-        }
-        .into())
+        })
     }
 }
 

@@ -5,7 +5,6 @@ use crate::cli::media::player::catalog::detect_media_players_by_walk;
 use crate::cli::media::player::catalog::detect_media_players_on_path;
 use crate::cli::media::player::catalog::display_name_for_key;
 use crate::cli::media::player::catalog::support_for_key;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use color_eyre::owo_colors::OwoColorize;
 use eyre::Result;
@@ -121,7 +120,7 @@ impl MediaPlayerDetectNowArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<MediaPlayerDetectNowResponse> {
         let should_walk = self.should_walk()?;
         let walk_timeout = self.walk_timeout_duration()?;
         let walk_roots = self.walk_roots()?;
@@ -177,7 +176,7 @@ impl MediaPlayerDetectNowArgs {
 
         output.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.path.cmp(&b.path)));
 
-        Ok(MediaPlayerDetectNowResponse { output }.into())
+        Ok(MediaPlayerDetectNowResponse { output })
     }
 
     fn should_walk(&self) -> Result<bool> {

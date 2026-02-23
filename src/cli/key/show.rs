@@ -2,7 +2,6 @@ use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::key::key_gen::KeyGenArgs;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -30,7 +29,7 @@ impl fmt::Display for KeyShowResponse {
 }
 
 impl KeyShowArgs {
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<KeyShowResponse> {
         let profile_home = context.profile_home();
 
         let keypair = if let Some(keypair) = app_state::load_keypair(profile_home)? {
@@ -45,7 +44,10 @@ impl KeyShowArgs {
             let mut answer = String::new();
             std::io::stdin().read_line(&mut answer)?;
             if answer.trim().eq_ignore_ascii_case("n") {
-                return Ok(CliResponse::empty());
+                return Ok(KeyShowResponse {
+                    public_key: "<none>".to_owned(),
+                    private_key: "no key generated".to_owned(),
+                });
             }
             let _ = KeyGenArgs.invoke(context).await?;
             app_state::load_keypair(profile_home)?
@@ -59,8 +61,7 @@ impl KeyShowArgs {
             } else {
                 "this value is hidden".to_owned()
             },
-        }
-        .into())
+        })
     }
 }
 

@@ -31,13 +31,13 @@ impl KnownUserRouteArgs {
     ///
     /// Returns an error if the selected known-user route subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
-        match self.command {
-            KnownUserRouteCommand::Add(args) => args.invoke(context).await,
-            KnownUserRouteCommand::New(args) => args.invoke(context).await,
-            KnownUserRouteCommand::Create(args) => args.invoke(context).await,
-            KnownUserRouteCommand::List(args) => args.invoke(context).await,
-            KnownUserRouteCommand::Remove(args) => args.invoke(context).await,
-        }
+        Ok(match self.command {
+            KnownUserRouteCommand::Add(args) => args.invoke(context).await?.into(),
+            KnownUserRouteCommand::New(args) => args.invoke(context).await?.into(),
+            KnownUserRouteCommand::Create(args) => args.invoke(context).await?.into(),
+            KnownUserRouteCommand::List(args) => args.invoke(context).await?.into(),
+            KnownUserRouteCommand::Remove(args) => args.invoke(context).await?.into(),
+        })
     }
 }
 

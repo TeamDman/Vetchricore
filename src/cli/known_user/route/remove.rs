@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -34,7 +33,7 @@ impl KnownUserRouteRemoveArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<KnownUserRouteRemoveResponse> {
         let record_key = self
             .record_id
             .as_ref()
@@ -55,8 +54,7 @@ impl KnownUserRouteRemoveArgs {
         if matches.is_empty() {
             return Ok(KnownUserRouteRemoveResponse {
                 message: "No matching known-user routes found.".to_owned(),
-            }
-            .into());
+            });
         }
 
         if matches.len() > 1 {
@@ -72,8 +70,7 @@ impl KnownUserRouteRemoveArgs {
             if !answer.trim().eq_ignore_ascii_case("y") {
                 return Ok(KnownUserRouteRemoveResponse {
                     message: "Aborted known-user route removal.".to_owned(),
-                }
-                .into());
+                });
             }
         }
 
@@ -84,8 +81,7 @@ impl KnownUserRouteRemoveArgs {
         )?;
         Ok(KnownUserRouteRemoveResponse {
             message: format!("Removed {removed} known-user route(s)."),
-        }
-        .into())
+        })
     }
 }
 

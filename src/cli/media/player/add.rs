@@ -2,7 +2,6 @@ use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::media::player::catalog::canonical_media_player_key;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use eyre::WrapErr;
@@ -40,7 +39,7 @@ impl MediaPlayerAddArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<MediaPlayerAddResponse> {
         let key = canonical_media_player_key(&self.key);
         let canonical_path = std::fs::canonicalize(&self.path)
             .wrap_err_with(|| format!("failed to canonicalize '{}'", self.path.display()))?;
@@ -49,8 +48,7 @@ impl MediaPlayerAddArgs {
         Ok(MediaPlayerAddResponse {
             key,
             configured_path: canonical_path.display().to_string(),
-        }
-        .into())
+        })
     }
 }
 

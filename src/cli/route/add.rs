@@ -3,7 +3,6 @@ use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::app_state::LocalRouteIdentity;
-use crate::cli::response::CliResponse;
 use crate::cli::route::RouteArgs;
 use crate::cli::route::RouteCommand;
 use crate::cli::route::listen::RouteListenArgs;
@@ -57,7 +56,7 @@ impl fmt::Display for RouteAddResponse {
 }
 
 impl RouteAddArgs {
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<RouteAddResponse> {
         let profile_home = context.profile_home();
         if app_state::local_route_identity(profile_home, &self.name)?.is_some() {
             bail!(
@@ -139,7 +138,6 @@ impl RouteAddArgs {
 
         if self.listen {
             listen_on_named_route(context, &self.name, None).await?;
-            return Ok(CliResponse::empty());
         }
 
         Ok(RouteAddResponse {
@@ -147,8 +145,7 @@ impl RouteAddArgs {
             record_key: record_key_text,
             profile: profile_home.profile().to_owned(),
             initialized_offline: true,
-        }
-        .into())
+        })
     }
 }
 

@@ -1,7 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;
@@ -42,7 +41,7 @@ impl KnownUserListArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<KnownUserListResponse> {
         let known_users = app_state::list_known_users(context.profile_home())?;
         let response = KnownUserListResponse {
             known_users: known_users
@@ -53,7 +52,7 @@ impl KnownUserListArgs {
                 })
                 .collect(),
         };
-        Ok(response.into())
+        Ok(response)
     }
 }
 

@@ -3,7 +3,6 @@ use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::media::player::catalog::display_name_for_key;
 use crate::cli::media::player::catalog::support_for_key;
-use crate::cli::response::CliResponse;
 use arbitrary::Arbitrary;
 use color_eyre::owo_colors::OwoColorize;
 use eyre::Result;
@@ -67,7 +66,7 @@ impl MediaPlayerListArgs {
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
-    pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
+    pub async fn invoke(self, context: &InvokeContext) -> Result<MediaPlayerListResponse> {
         debug!("listing media players");
 
         let configured = app_state::list_media_players(context.profile_home())?;
@@ -106,7 +105,7 @@ impl MediaPlayerListArgs {
             "prepared media player list output"
         );
 
-        Ok(MediaPlayerListResponse { views }.into())
+        Ok(MediaPlayerListResponse { views })
     }
 }
 

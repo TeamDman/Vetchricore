@@ -35,18 +35,18 @@ impl RouteArgs {
     ///
     /// Returns an error if the selected route subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<CliResponse> {
-        match self.command {
-            RouteCommand::Add(args) => args.invoke(context).await,
-            RouteCommand::New(args) => args.invoke(context).await,
-            RouteCommand::Create(args) => args.invoke(context).await,
+        Ok(match self.command {
+            RouteCommand::Add(args) => args.invoke(context).await?.into(),
+            RouteCommand::New(args) => args.invoke(context).await?.into(),
+            RouteCommand::Create(args) => args.invoke(context).await?.into(),
             RouteCommand::Listen(args) => {
                 args.invoke(context).await?;
-                Ok(CliResponse::empty())
+                CliResponse::empty()
             }
-            RouteCommand::List(args) => args.invoke(context).await,
-            RouteCommand::Show(args) => args.invoke(context).await,
-            RouteCommand::Remove(args) => args.invoke(context).await,
-        }
+            RouteCommand::List(args) => args.invoke(context).await?.into(),
+            RouteCommand::Show(args) => args.invoke(context).await?.into(),
+            RouteCommand::Remove(args) => args.invoke(context).await?.into(),
+        })
     }
 }
 
