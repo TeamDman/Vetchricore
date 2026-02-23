@@ -40,7 +40,6 @@ impl SendChatArgs {
         reason = "chat flow combines validation, setup, and interactive send loop"
     )]
     pub async fn invoke(self, context: &InvokeContext, known_user: &str) -> Result<()> {
-
         let retry_attempts = self.retry.unwrap_or(1);
         if retry_attempts == 0 {
             bail!("--retry must be greater than 0.");

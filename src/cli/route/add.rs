@@ -87,7 +87,8 @@ impl RouteAddArgs {
             let public_internet_ready = Arc::clone(&public_internet_ready);
             Arc::new(move |update: VeilidUpdate| {
                 if let VeilidUpdate::Attachment(attachment) = update {
-                    public_internet_ready.store(attachment.public_internet_ready, Ordering::Release);
+                    public_internet_ready
+                        .store(attachment.public_internet_ready, Ordering::Release);
                 }
             }) as crate::cli::veilid_runtime::UpdateCallback
         };
