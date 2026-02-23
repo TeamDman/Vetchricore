@@ -37,7 +37,7 @@ impl ToArgs for TestRunArgs {
         let mut args = Vec::new();
         match &self.command {
             TestRunCommand::E2eChat(e2e_chat_args) => {
-                args.push("e2e_chat".into());
+                args.push("e2e-chat".into());
                 args.extend(e2e_chat_args.to_args());
             }
         }

@@ -37,7 +37,7 @@ impl ToArgs for KnownUserRouteAddArgs {
         vec![
             "--known-user".into(),
             self.known_user.clone().into(),
-            "--record-id".into(),
+            "--record-key".into(),
             self.record_key.clone().into(),
         ]
     }
