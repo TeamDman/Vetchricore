@@ -1,7 +1,7 @@
 pub mod e2e_chat;
 
-use crate::cli::ToArgs;
 use crate::cli::InvokeContext;
+use crate::cli::ToArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;
 use facet::Facet;

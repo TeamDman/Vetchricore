@@ -1,6 +1,13 @@
+use crate::cli::Cli;
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
+use crate::cli::key::KeyArgs;
+use crate::cli::key::KeyCommand;
+use crate::cli::key::key_gen::KeyGenArgs;
+use crate::cli::known_user::KnownUserArgs;
+use crate::cli::known_user::KnownUserCommand;
+use crate::cli::known_user::add::KnownUserAddArgs;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Context;
@@ -24,7 +31,7 @@ pub struct SendChatArgs {
     #[facet(args::positional)]
     pub to: String,
     #[facet(args::positional)]
-    pub friend: String,
+    pub known_user: String,
     #[facet(args::named)]
     pub message: Option<String>,
     #[facet(args::named)]
@@ -32,9 +39,13 @@ pub struct SendChatArgs {
 }
 
 impl SendChatArgs {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "chat flow combines validation, setup, and interactive send loop"
+    )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         if self.to != "to" {
-            bail!("Usage: send chat to <friend> [--message <text>] [--retry <count>]");
+            bail!("Usage: send chat to <known-user> [--message <text>] [--retry <count>]");
         }
 
         let retry_attempts = self.retry.unwrap_or(1);
@@ -43,18 +54,31 @@ impl SendChatArgs {
         }
 
         let profile_home = context.profile_home();
-        let my_keypair = app_state::load_keypair(profile_home)?
-            .ok_or_else(|| eyre::eyre!("You have no key. Run 'vetchricore key gen' first."))?;
-        let friend_key = app_state::friend_public_key(profile_home, &self.friend)?.ok_or_else(|| {
+        let my_keypair = app_state::load_keypair(profile_home)?.ok_or_else(|| {
             eyre::eyre!(
-                "Friend '{}' not found. Add them with 'vetchricore friend add <name> <pubkey>'.",
-                self.friend
+                "You have no key. Run '{}' first.",
+                Cli::display_invocation(&crate::cli::Command::Key(KeyArgs {
+                    command: KeyCommand::Gen(KeyGenArgs),
+                }))
             )
         })?;
+        let known_user_key = app_state::known_user_public_key(profile_home, &self.known_user)?
+            .ok_or_else(|| {
+                eyre::eyre!(
+                    "Known user '{}' not found. Add them with '{}'.",
+                    self.known_user,
+                    Cli::display_invocation(&crate::cli::Command::KnownUser(KnownUserArgs {
+                        command: KnownUserCommand::Add(KnownUserAddArgs {
+                            name: "<name>".to_owned(),
+                            pubkey: "<pubkey>".to_owned(),
+                        }),
+                    }))
+                )
+            })?;
 
-        let keys = app_state::route_keys_for_friend(profile_home, &self.friend)?;
+        let keys = app_state::route_keys_for_known_user(profile_home, &self.known_user)?;
         if keys.is_empty() {
-            bail!("No route record keys configured for {}.", self.friend);
+            bail!("No route record keys configured for {}.", self.known_user);
         }
 
         let public_internet_ready = Arc::new(AtomicBool::new(false));
@@ -62,7 +86,8 @@ impl SendChatArgs {
             let public_internet_ready = Arc::clone(&public_internet_ready);
             Arc::new(move |update: VeilidUpdate| {
                 if let VeilidUpdate::Attachment(attachment) = update {
-                    public_internet_ready.store(attachment.public_internet_ready, Ordering::Release);
+                    public_internet_ready
+                        .store(attachment.public_internet_ready, Ordering::Release);
                 }
             }) as crate::cli::veilid_runtime::UpdateCallback
         };
@@ -140,7 +165,7 @@ impl SendChatArgs {
         }
 
         api.shutdown().await;
-        let _ = friend_key;
+        let _ = known_user_key;
         Ok(())
     }
 }
@@ -191,16 +216,14 @@ async fn send_payload_with_key_not_found_retry(
     max_attempts: usize,
 ) -> Result<()> {
     for attempt in 1..=max_attempts {
-        println!("Send attempt {} of {}.", attempt, max_attempts);
+        println!("Send attempt {attempt} of {max_attempts}.");
 
         let route_id = match acquire_best_route(api, router, keys).await {
             Ok(route_id) => route_id,
             Err(error) => {
                 if should_retry_key_not_found(&error) && attempt < max_attempts {
                     println!(
-                        "Route record key not found; retrying in 1s (attempt {} of {}).",
-                        attempt,
-                        max_attempts
+                        "Route record key not found; retrying in 1s (attempt {attempt} of {max_attempts})."
                     );
                     tokio::time::sleep(Duration::from_secs(1)).await;
                     continue;
@@ -220,9 +243,7 @@ async fn send_payload_with_key_not_found_retry(
                 let error = eyre::Report::from(error);
                 if should_retry_key_not_found(&error) && attempt < max_attempts {
                     println!(
-                        "Route record key not found; retrying in 1s (attempt {} of {}).",
-                        attempt,
-                        max_attempts
+                        "Route record key not found; retrying in 1s (attempt {attempt} of {max_attempts})."
                     );
                     tokio::time::sleep(Duration::from_secs(1)).await;
                     continue;
@@ -246,7 +267,7 @@ fn should_retry_key_not_found(error: &eyre::Report) -> bool {
 
 impl ToArgs for SendChatArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
-        let mut args = vec![self.to.clone().into(), self.friend.clone().into()];
+        let mut args = vec![self.to.clone().into(), self.known_user.clone().into()];
         if let Some(message) = &self.message {
             args.push("--message".into());
             args.push(message.clone().into());

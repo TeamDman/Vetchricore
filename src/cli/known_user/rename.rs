@@ -7,25 +7,27 @@ use facet::Facet;
 use figue as args;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq)]
-pub struct FriendRemoveArgs {
+pub struct KnownUserRenameArgs {
     #[facet(args::positional)]
-    pub name: String,
+    pub old_name: String,
+    #[facet(args::positional)]
+    pub new_name: String,
 }
 
-impl FriendRemoveArgs {
+impl KnownUserRenameArgs {
     #[expect(
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
-        app_state::remove_friend(context.profile_home(), &self.name)?;
-        println!("{} has been unfriended.", self.name);
+        app_state::rename_known_user(context.profile_home(), &self.old_name, &self.new_name)?;
+        println!("{} has been renamed to {}.", self.old_name, self.new_name);
         Ok(())
     }
 }
 
-impl ToArgs for FriendRemoveArgs {
+impl ToArgs for KnownUserRenameArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
-        vec![self.name.clone().into()]
+        vec![self.old_name.clone().into(), self.new_name.clone().into()]
     }
 }

@@ -1,16 +1,17 @@
-use crate::cli::ToArgs;
+use crate::cli::Cli;
 use crate::cli::Command as CliCommand;
 use crate::cli::InvokeContext;
-use crate::cli::friend::FriendArgs;
-use crate::cli::friend::FriendCommand;
-use crate::cli::friend::add::FriendAddArgs;
-use crate::cli::friend::route::FriendRouteArgs;
-use crate::cli::friend::route::FriendRouteCommand;
-use crate::cli::friend::route::add::FriendRouteAddArgs;
+use crate::cli::ToArgs;
 use crate::cli::global_args::GlobalArgs;
 use crate::cli::key::KeyArgs;
 use crate::cli::key::KeyCommand;
 use crate::cli::key::key_gen::KeyGenArgs;
+use crate::cli::known_user::KnownUserArgs;
+use crate::cli::known_user::KnownUserCommand;
+use crate::cli::known_user::add::KnownUserAddArgs;
+use crate::cli::known_user::route::KnownUserRouteArgs;
+use crate::cli::known_user::route::KnownUserRouteCommand;
+use crate::cli::known_user::route::add::KnownUserRouteAddArgs;
 use crate::cli::profile::ProfileArgs;
 use crate::cli::profile::ProfileCommand;
 use crate::cli::profile::add::ProfileAddArgs;
@@ -27,7 +28,6 @@ use eyre::Context;
 use eyre::Result;
 use eyre::bail;
 use facet::Facet;
-use tracing::info;
 use std::ffi::OsString;
 use std::io::BufRead;
 use std::io::Write;
@@ -38,6 +38,7 @@ use std::process::Command as ProcessCommand;
 use std::process::Stdio;
 use std::thread;
 use std::time::Duration;
+use tracing::info;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
 pub struct E2eChatArgs;
@@ -53,6 +54,10 @@ impl E2eChatArgs {
 
 impl ToArgs for E2eChatArgs {}
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "e2e setup intentionally documents full flow end-to-end"
+)]
 async fn run_e2e_chat() -> Result<()> {
     let temp = tempfile::tempdir().wrap_err("failed creating temp dir")?;
     let home_dir = temp.path().join("home");
@@ -67,7 +72,7 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         None,
-        CliCommand::Profile(ProfileArgs {
+        &CliCommand::Profile(ProfileArgs {
             command: ProfileCommand::Add(ProfileAddArgs {
                 name: "Bob".to_owned(),
             }),
@@ -78,7 +83,7 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         None,
-        CliCommand::Profile(ProfileArgs {
+        &CliCommand::Profile(ProfileArgs {
             command: ProfileCommand::Add(ProfileAddArgs {
                 name: "Janet".to_owned(),
             }),
@@ -90,7 +95,7 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         Some("Bob"),
-        CliCommand::Key(KeyArgs {
+        &CliCommand::Key(KeyArgs {
             command: KeyCommand::Gen(KeyGenArgs),
         }),
     )?;
@@ -102,7 +107,7 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         Some("Janet"),
-        CliCommand::Key(KeyArgs {
+        &CliCommand::Key(KeyArgs {
             command: KeyCommand::Gen(KeyGenArgs),
         }),
     )?;
@@ -114,8 +119,8 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         Some("Bob"),
-        CliCommand::Friend(FriendArgs {
-            command: FriendCommand::Add(FriendAddArgs {
+        &CliCommand::KnownUser(KnownUserArgs {
+            command: KnownUserCommand::Add(KnownUserAddArgs {
                 name: "Janet".to_owned(),
                 pubkey: janet_pubkey,
             }),
@@ -126,8 +131,8 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         Some("Janet"),
-        CliCommand::Friend(FriendArgs {
-            command: FriendCommand::Add(FriendAddArgs {
+        &CliCommand::KnownUser(KnownUserArgs {
+            command: KnownUserCommand::Add(KnownUserAddArgs {
                 name: "Bob".to_owned(),
                 pubkey: bob_pubkey,
             }),
@@ -139,7 +144,7 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         Some("Janet"),
-        CliCommand::Route(RouteArgs {
+        &CliCommand::Route(RouteArgs {
             command: RouteCommand::Create(RouteCreateArgs {
                 name: "janet-inbox".to_owned(),
                 listen: false,
@@ -152,7 +157,7 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         Some("Janet"),
-        CliCommand::Route(RouteArgs {
+        &CliCommand::Route(RouteArgs {
             command: RouteCommand::Show(RouteShowArgs {
                 name: "janet-inbox".to_owned(),
             }),
@@ -166,10 +171,10 @@ async fn run_e2e_chat() -> Result<()> {
         &home_dir,
         &cache_dir,
         Some("Bob"),
-        CliCommand::Friend(FriendArgs {
-            command: FriendCommand::Route(FriendRouteArgs {
-                command: FriendRouteCommand::Add(FriendRouteAddArgs {
-                    friend: "Janet".to_owned(),
+        &CliCommand::KnownUser(KnownUserArgs {
+            command: KnownUserCommand::Route(KnownUserRouteArgs {
+                command: KnownUserRouteCommand::Add(KnownUserRouteAddArgs {
+                    known_user: "Janet".to_owned(),
                     record_id: route_record_key,
                 }),
             }),
@@ -183,12 +188,7 @@ async fn run_e2e_chat() -> Result<()> {
         }),
     });
     log_typed_command(Some("Janet"), &listener_command);
-    let listener_args = make_args(
-        &home_dir,
-        &cache_dir,
-        Some("Janet"),
-        &listener_command,
-    );
+    let listener_args = make_args(&home_dir, &cache_dir, Some("Janet"), &listener_command);
     let listener = spawn_streaming(&exe, &listener_args, "Janet")
         .wrap_err("failed to start Janet listener")?;
 
@@ -197,20 +197,15 @@ async fn run_e2e_chat() -> Result<()> {
     let sender_command = CliCommand::Send(SendArgs {
         command: SendCommand::Chat(SendChatArgs {
             to: "to".to_owned(),
-            friend: "Janet".to_owned(),
+            known_user: "Janet".to_owned(),
             message: Some("schoolbus".to_owned()),
             retry: Some(20),
         }),
     });
     log_typed_command(Some("Bob"), &sender_command);
-    let sender_args = make_args(
-        &home_dir,
-        &cache_dir,
-        Some("Bob"),
-        &sender_command,
-    );
-    let sender = spawn_streaming(&exe, &sender_args, "Bob")
-        .wrap_err("failed to start Bob sender")?;
+    let sender_args = make_args(&home_dir, &cache_dir, Some("Bob"), &sender_command);
+    let sender =
+        spawn_streaming(&exe, &sender_args, "Bob").wrap_err("failed to start Bob sender")?;
 
     let (listener_output, _sender_output) = tokio::time::timeout(
         Duration::from_secs(45),
@@ -230,7 +225,10 @@ async fn run_e2e_chat() -> Result<()> {
         );
     }
 
-    println!("e2e_chat passed using temporary home at {}", home_dir.display());
+    println!(
+        "e2e_chat passed using temporary home at {}",
+        home_dir.display()
+    );
     Ok(())
 }
 
@@ -245,33 +243,24 @@ fn run_typed(
     home_dir: &Path,
     cache_dir: &Path,
     profile: Option<&str>,
-    command: CliCommand,
+    command: &CliCommand,
 ) -> Result<CommandOutput> {
-    let command_args = command.to_args();
+    let command_display = Cli::display_invocation(&command);
     let profile_label = profile.unwrap_or("default");
-    run_cli(
-        exe,
-        make_args(home_dir, cache_dir, profile, &command),
-        profile_label,
-        &command_args,
-    )
+    let args = make_args(home_dir, cache_dir, profile, command);
+    run_cli(exe, &args, profile_label, &command_display)
 }
 
 fn run_cli(
     exe: &Path,
-    args: Vec<OsString>,
+    args: &[OsString],
     profile: &str,
-    command_args: &[OsString],
+    command_display: &str,
 ) -> Result<CommandOutput> {
-    info!(
-        "Running command ({}): {}",
-        profile,
-        printable_args(command_args)
-    );
-    let output = run_cli_once(exe, &args, profile)?;
+    info!("Running command ({}): {}", profile, command_display);
+    let output = run_cli_once(exe, args, profile)?;
     if !output.success {
-        let printable_args = printable_args(command_args);
-        bail!("child command failed: {}", printable_args);
+        bail!("child command failed: {}", command_display);
     }
     Ok(output)
 }
@@ -376,11 +365,11 @@ fn collect_streaming_output_with_status(
     let stdout_bytes = streaming_child
         .stdout_thread
         .join()
-        .map_err(|_| eyre::eyre!("failed joining stdout stream thread"))?;
+        .map_err(|join_err| eyre::eyre!("failed joining stdout stream thread: {join_err:?}"))?;
     let stderr_bytes = streaming_child
         .stderr_thread
         .join()
-        .map_err(|_| eyre::eyre!("failed joining stderr stream thread"))?;
+        .map_err(|join_err| eyre::eyre!("failed joining stderr stream thread: {join_err:?}"))?;
 
     Ok(CommandOutput {
         success,
@@ -399,25 +388,18 @@ fn wait_for_parallel_commands(
         if let Some(status) = first
             .child
             .try_wait()
-            .wrap_err_with(|| format!("failed polling {}", first_name))?
+            .wrap_err_with(|| format!("failed polling {first_name}"))?
         {
-            let first_output =
-                collect_streaming_output_with_status(first, status.success())?;
+            let first_output = collect_streaming_output_with_status(first, status.success())?;
             if !first_output.success {
                 let _ = second.child.kill();
                 let _second_output = collect_streaming_output(second)?;
-                bail!(
-                    "{} failed while running in parallel.",
-                    first_name,
-                );
+                bail!("{} failed while running in parallel.", first_name,);
             }
 
             let second_output = collect_streaming_output(second)?;
             if !second_output.success {
-                bail!(
-                    "{} failed while running in parallel.",
-                    second_name,
-                );
+                bail!("{} failed while running in parallel.", second_name,);
             }
 
             return Ok((first_output, second_output));
@@ -426,25 +408,18 @@ fn wait_for_parallel_commands(
         if let Some(status) = second
             .child
             .try_wait()
-            .wrap_err_with(|| format!("failed polling {}", second_name))?
+            .wrap_err_with(|| format!("failed polling {second_name}"))?
         {
-            let second_output =
-                collect_streaming_output_with_status(second, status.success())?;
+            let second_output = collect_streaming_output_with_status(second, status.success())?;
             if !second_output.success {
                 let _ = first.child.kill();
                 let _first_output = collect_streaming_output(first)?;
-                bail!(
-                    "{} failed while running in parallel.",
-                    second_name,
-                );
+                bail!("{} failed while running in parallel.", second_name,);
             }
 
             let first_output = collect_streaming_output(first)?;
             if !first_output.success {
-                bail!(
-                    "{} failed while running in parallel.",
-                    first_name,
-                );
+                bail!("{} failed while running in parallel.", first_name,);
             }
 
             return Ok((first_output, second_output));
@@ -461,14 +436,7 @@ fn styled_stream_prefix(stream_prefix: &str) -> String {
         "default" => "\x1b[38;5;244m",
         _ => "\x1b[38;5;250m",
     };
-    format!("{}{}|\x1b[0m", color, stream_prefix)
-}
-
-fn printable_args(args: &[OsString]) -> String {
-    args.iter()
-        .map(|arg| arg.to_string_lossy().to_string())
-        .collect::<Vec<_>>()
-        .join(" ")
+    format!("{color}{stream_prefix}|\x1b[0m")
 }
 
 fn make_args_with_global(command: &impl ToArgs, global: &GlobalArgs) -> Vec<OsString> {
@@ -503,7 +471,7 @@ fn log_typed_command(profile: Option<&str>, command: &CliCommand) {
     info!(
         "Running command ({}): {}",
         profile.unwrap_or("default"),
-        printable_args(&command.to_args())
+        Cli::display_invocation(command)
     );
 }
 

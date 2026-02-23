@@ -7,38 +7,40 @@ use facet::Facet;
 use figue as args;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
-pub struct FriendRouteListArgs {
+pub struct KnownUserRouteListArgs {
     #[facet(args::named)]
-    pub friend: Option<String>,
+    pub known_user: Option<String>,
 }
 
-impl FriendRouteListArgs {
+impl KnownUserRouteListArgs {
     #[expect(
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
-        let routes =
-            app_state::list_friend_route_keys(context.profile_home(), self.friend.as_deref())?;
+        let routes = app_state::list_known_user_route_keys(
+            context.profile_home(),
+            self.known_user.as_deref(),
+        )?;
 
         if routes.is_empty() {
-            println!("No friend routes have been added.");
+            println!("No known-user routes have been added.");
             return Ok(());
         }
 
         for route in routes {
-            println!("{} ({})", route.friend, route.record_key);
+            println!("{} ({})", route.known_user, route.record_key);
         }
         Ok(())
     }
 }
 
-impl ToArgs for FriendRouteListArgs {
+impl ToArgs for KnownUserRouteListArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
         let mut args = Vec::new();
-        if let Some(friend) = &self.friend {
-            args.push("--friend".into());
-            args.push(friend.clone().into());
+        if let Some(known_user) = &self.known_user {
+            args.push("--known-user".into());
+            args.push(known_user.clone().into());
         }
         args
     }

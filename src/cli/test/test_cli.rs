@@ -1,5 +1,5 @@
-use crate::cli::ToArgs;
 use crate::cli::InvokeContext;
+use crate::cli::ToArgs;
 use crate::cli::test::run::TestRunArgs;
 use arbitrary::Arbitrary;
 use eyre::Result;

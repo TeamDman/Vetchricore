@@ -1,7 +1,11 @@
+use crate::cli::Cli;
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::app_state::LocalRouteIdentity;
+use crate::cli::route::RouteArgs;
+use crate::cli::route::RouteCommand;
+use crate::cli::route::listen::RouteListenArgs;
 use crate::cli::route::listen::listen_on_named_route;
 use crate::cli::veilid_runtime::printing_update_callback;
 use crate::cli::veilid_runtime::start_api_for_profile;
@@ -27,9 +31,14 @@ impl RouteCreateArgs {
         let profile_home = context.profile_home();
         if app_state::local_route_identity(profile_home, &self.name)?.is_some() {
             bail!(
-                "Route '{}' already exists. Use 'vetchricore route listen {}' to reuse it.",
+                "Route '{}' already exists. Use '{}' to reuse it.",
                 self.name,
-                self.name
+                Cli::display_invocation(&RouteArgs {
+                    command: RouteCommand::Listen(RouteListenArgs {
+                        name: self.name.clone(),
+                        count: None,
+                    }),
+                })
             );
         }
 

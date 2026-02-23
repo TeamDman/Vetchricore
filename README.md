@@ -10,11 +10,11 @@ Not an official Veilid project.
 
 - Global `--profile <name>` override for all commands.
 - `profile add|list|use|remove|show`
-- `friend list|add <name> <pubkey>|rename <old> <new>|remove <name>`
+- `known-user list|add <name> <pubkey>|rename <old> <new>|remove <name>`
 - `key gen|show [--reveal]|remove`
 - `route create [--listen]`
-- `route add --friend <name> --record-key <key>`
-- `send chat to <friend> [--message <text>]`
+- `route add --known-user <name> --record-key <key>`
+- `send chat to <known-user> [--message <text>]`
 
 ### Quick usage
 
@@ -26,13 +26,13 @@ vetchricore profile use profile2
 # Generate your local keypair for the active profile
 vetchricore key gen
 
-# Add a friend
-vetchricore friend add friend1 VLD0:...
+# Add a known user
+vetchricore known-user add user1 VLD0:...
 
 # Start listening by publishing a private-route blob under a DHT record key
 vetchricore route create --listen
 
-# Register one of friend1's route record keys then send a message
-vetchricore route add --friend friend1 --record-key VLD0:...
-vetchricore send chat to friend1 --message "hello"
+# Register one of user1's route record keys then send a message
+vetchricore route add --known-user user1 --record-key VLD0:...
+vetchricore send chat to user1 --message "hello"
 ```

@@ -12,7 +12,7 @@ use veilid_core::RecordKey;
 const PROFILES_DIR: &str = "profiles";
 const ACTIVE_PROFILE_FILE: &str = "active_profile.txt";
 const KEYPAIR_FILE: &str = "keypair.txt";
-const FRIENDS_FILE: &str = "friends.tsv";
+const KNOWN_USERS_FILE: &str = "known_users.tsv";
 const ROUTES_FILE: &str = "routes.tsv";
 const ROUTE_IDENTITIES_FILE: &str = "route_identities.tsv";
 
@@ -53,7 +53,7 @@ impl ProfileHome {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FriendEntry {
+pub struct KnownUserEntry {
     pub name: String,
     pub pubkey: PublicKey,
 }
@@ -66,8 +66,8 @@ pub struct LocalRouteIdentity {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FriendRouteEntry {
-    pub friend: String,
+pub struct KnownUserRouteEntry {
+    pub known_user: String,
     pub record_key: RecordKey,
 }
 
@@ -161,7 +161,7 @@ pub fn create_profile(app_home: &AppHome, name: &str) -> Result<()> {
 
     std::fs::create_dir_all(&dir)?;
     let profile_home = profile_home(app_home, name)?;
-    std::fs::write(friends_file(&profile_home), "")?;
+    std::fs::write(known_users_file(&profile_home), "")?;
     std::fs::write(routes_file(&profile_home), "")?;
     Ok(())
 }
@@ -287,111 +287,111 @@ pub fn remove_keypair(profile_home: &ProfileHome) -> Result<()> {
     Ok(())
 }
 
-/// List friends configured for a profile.
+/// List known users configured for a profile.
 ///
 /// # Errors
 ///
-/// Returns an error if the profile is invalid or friend data cannot be read/parsed.
-pub fn list_friends(profile_home: &ProfileHome) -> Result<Vec<FriendEntry>> {
+/// Returns an error if the profile is invalid or known-user data cannot be read/parsed.
+pub fn list_known_users(profile_home: &ProfileHome) -> Result<Vec<KnownUserEntry>> {
     ensure_profile_exists(profile_home)?;
-    parse_friends_file(&friends_file(profile_home))
+    parse_known_users_file(&known_users_file(profile_home))
 }
 
-/// Add a friend entry to a profile.
+/// Add a known-user entry to a profile.
 ///
 /// # Errors
 ///
-/// Returns an error if the friend already exists or friend data cannot be persisted.
-pub fn add_friend(profile_home: &ProfileHome, name: &str, pubkey: PublicKey) -> Result<()> {
-    let mut friends = list_friends(profile_home)?;
-    if friends.iter().any(|f| f.name == name) {
-        bail!("Friend '{}' already exists.", name);
+/// Returns an error if the known user already exists or known-user data cannot be persisted.
+pub fn add_known_user(profile_home: &ProfileHome, name: &str, pubkey: PublicKey) -> Result<()> {
+    let mut known_users = list_known_users(profile_home)?;
+    if known_users.iter().any(|entry| entry.name == name) {
+        bail!("Known user '{}' already exists.", name);
     }
-    friends.push(FriendEntry {
+    known_users.push(KnownUserEntry {
         name: name.to_owned(),
         pubkey,
     });
-    friends.sort_by(|a, b| a.name.cmp(&b.name));
-    write_friends_file(&friends_file(profile_home), &friends)
+    known_users.sort_by(|a, b| a.name.cmp(&b.name));
+    write_known_users_file(&known_users_file(profile_home), &known_users)
 }
 
-/// Rename a friend entry for a profile.
+/// Rename a known-user entry for a profile.
 ///
 /// # Errors
 ///
-/// Returns an error if the source friend does not exist, target name already exists,
-/// or friend data cannot be persisted.
-pub fn rename_friend(profile_home: &ProfileHome, old_name: &str, new_name: &str) -> Result<()> {
-    let mut friends = list_friends(profile_home)?;
-    if friends.iter().any(|f| f.name == new_name) {
-        bail!("Friend '{}' already exists.", new_name);
+/// Returns an error if the source known user does not exist, target name already exists,
+/// or known-user data cannot be persisted.
+pub fn rename_known_user(profile_home: &ProfileHome, old_name: &str, new_name: &str) -> Result<()> {
+    let mut known_users = list_known_users(profile_home)?;
+    if known_users.iter().any(|entry| entry.name == new_name) {
+        bail!("Known user '{}' already exists.", new_name);
     }
 
-    let Some(friend) = friends.iter_mut().find(|f| f.name == old_name) else {
-        bail!("Friend '{}' does not exist.", old_name);
+    let Some(known_user) = known_users.iter_mut().find(|entry| entry.name == old_name) else {
+        bail!("Known user '{}' does not exist.", old_name);
     };
-    new_name.clone_into(&mut friend.name);
+    new_name.clone_into(&mut known_user.name);
 
-    friends.sort_by(|a, b| a.name.cmp(&b.name));
-    write_friends_file(&friends_file(profile_home), &friends)
+    known_users.sort_by(|a, b| a.name.cmp(&b.name));
+    write_known_users_file(&known_users_file(profile_home), &known_users)
 }
 
-/// Remove a friend entry from a profile.
+/// Remove a known-user entry from a profile.
 ///
 /// # Errors
 ///
-/// Returns an error if the friend does not exist or friend data cannot be persisted.
-pub fn remove_friend(profile_home: &ProfileHome, name: &str) -> Result<()> {
-    let mut friends = list_friends(profile_home)?;
-    let prior_len = friends.len();
-    friends.retain(|f| f.name != name);
-    if friends.len() == prior_len {
-        bail!("Friend '{}' does not exist.", name);
+/// Returns an error if the known user does not exist or known-user data cannot be persisted.
+pub fn remove_known_user(profile_home: &ProfileHome, name: &str) -> Result<()> {
+    let mut known_users = list_known_users(profile_home)?;
+    let prior_len = known_users.len();
+    known_users.retain(|entry| entry.name != name);
+    if known_users.len() == prior_len {
+        bail!("Known user '{}' does not exist.", name);
     }
-    write_friends_file(&friends_file(profile_home), &friends)
+    write_known_users_file(&known_users_file(profile_home), &known_users)
 }
 
-/// Get a friend's public key by friend name.
+/// Get a known user's public key by known-user name.
 ///
 /// # Errors
 ///
 /// Returns an error if the profile data cannot be loaded.
-pub fn friend_public_key(profile_home: &ProfileHome, name: &str) -> Result<Option<PublicKey>> {
-    let friends = list_friends(profile_home)?;
-    Ok(friends
+pub fn known_user_public_key(profile_home: &ProfileHome, name: &str) -> Result<Option<PublicKey>> {
+    let known_users = list_known_users(profile_home)?;
+    Ok(known_users
         .into_iter()
-        .find(|f| f.name == name)
-        .map(|f| f.pubkey))
+        .find(|entry| entry.name == name)
+        .map(|entry| entry.pubkey))
 }
 
-/// Get a friend name by public key.
+/// Get a known-user name by public key.
 ///
 /// # Errors
 ///
 /// Returns an error if the profile data cannot be loaded.
-pub fn friend_name_by_public_key(
+pub fn known_user_name_by_public_key(
     profile_home: &ProfileHome,
     pubkey: &PublicKey,
 ) -> Result<Option<String>> {
-    let friends = list_friends(profile_home)?;
-    Ok(friends
+    let known_users = list_known_users(profile_home)?;
+    Ok(known_users
         .into_iter()
-        .find(|f| &f.pubkey == pubkey)
-        .map(|f| f.name))
+        .find(|entry| &entry.pubkey == pubkey)
+        .map(|entry| entry.name))
 }
 
-/// Add a route record key for a friend in a profile.
+/// Add a route record key for a known user in a profile.
 ///
 /// # Errors
 ///
 /// Returns an error if route data cannot be loaded or persisted.
 pub fn add_route_key(
     profile_home: &ProfileHome,
-    friend: &str,
+    known_user: &str,
     record_key: &RecordKey,
 ) -> Result<()> {
-    let mut routes = list_route_keys_by_friend(profile_home)?;
-    let keys = routes.entry(friend.to_owned()).or_default();
+    let mut routes = list_route_keys_by_known_user(profile_home)?;
+    let keys = routes.entry(known_user.to_owned()).or_default();
     let record_key_text = record_key.to_string();
     if !keys.iter().any(|rk| rk == &record_key_text) {
         keys.push(record_key_text);
@@ -399,14 +399,17 @@ pub fn add_route_key(
     write_routes(profile_home, &routes)
 }
 
-/// Get known route record keys for a friend.
+/// Get known route record keys for a known user.
 ///
 /// # Errors
 ///
 /// Returns an error if route data cannot be loaded or record keys cannot be parsed.
-pub fn route_keys_for_friend(profile_home: &ProfileHome, friend: &str) -> Result<Vec<RecordKey>> {
-    let routes = list_route_keys_by_friend(profile_home)?;
-    let Some(keys) = routes.get(friend) else {
+pub fn route_keys_for_known_user(
+    profile_home: &ProfileHome,
+    known_user: &str,
+) -> Result<Vec<RecordKey>> {
+    let routes = list_route_keys_by_known_user(profile_home)?;
+    let Some(keys) = routes.get(known_user) else {
         return Ok(Vec::new());
     };
 
@@ -415,57 +418,57 @@ pub fn route_keys_for_friend(profile_home: &ProfileHome, friend: &str) -> Result
         .collect()
 }
 
-/// List friend route record keys, optionally filtered by friend name.
+/// List known-user route record keys, optionally filtered by known-user name.
 ///
 /// # Errors
 ///
 /// Returns an error if route data cannot be loaded or record keys cannot be parsed.
-pub fn list_friend_route_keys(
+pub fn list_known_user_route_keys(
     profile_home: &ProfileHome,
-    friend: Option<&str>,
-) -> Result<Vec<FriendRouteEntry>> {
-    let routes = list_route_keys_by_friend(profile_home)?;
+    known_user: Option<&str>,
+) -> Result<Vec<KnownUserRouteEntry>> {
+    let routes = list_route_keys_by_known_user(profile_home)?;
     let mut out = Vec::new();
 
-    for (friend_name, keys) in routes {
-        if let Some(target_friend) = friend
-            && friend_name != target_friend
+    for (known_user_name, keys) in routes {
+        if let Some(target_known_user) = known_user
+            && known_user_name != target_known_user
         {
             continue;
         }
 
         for key in keys {
-            out.push(FriendRouteEntry {
-                friend: friend_name.clone(),
+            out.push(KnownUserRouteEntry {
+                known_user: known_user_name.clone(),
                 record_key: key.parse::<RecordKey>()?,
             });
         }
     }
 
     out.sort_by(|a, b| {
-        a.friend
-            .cmp(&b.friend)
+        a.known_user
+            .cmp(&b.known_user)
             .then_with(|| a.record_key.to_string().cmp(&b.record_key.to_string()))
     });
     Ok(out)
 }
 
-/// Remove friend route record keys by optional friend and/or record key filters.
+/// Remove known-user route record keys by optional known-user and/or record key filters.
 ///
 /// # Errors
 ///
 /// Returns an error if route data cannot be loaded or persisted.
-pub fn remove_friend_route_keys(
+pub fn remove_known_user_route_keys(
     profile_home: &ProfileHome,
-    friend: Option<&str>,
+    known_user: Option<&str>,
     record_key: Option<&RecordKey>,
 ) -> Result<usize> {
-    let mut routes = list_route_keys_by_friend(profile_home)?;
+    let mut routes = list_route_keys_by_known_user(profile_home)?;
     let before_count = routes.values().map(Vec::len).sum::<usize>();
 
-    for (friend_name, keys) in &mut routes {
-        if let Some(target_friend) = friend
-            && friend_name != target_friend
+    for (known_user_name, keys) in &mut routes {
+        if let Some(target_known_user) = known_user
+            && known_user_name != target_known_user
         {
             continue;
         }
@@ -589,7 +592,9 @@ fn write_local_route_identities(
     Ok(())
 }
 
-fn list_route_keys_by_friend(profile_home: &ProfileHome) -> Result<BTreeMap<String, Vec<String>>> {
+fn list_route_keys_by_known_user(
+    profile_home: &ProfileHome,
+) -> Result<BTreeMap<String, Vec<String>>> {
     ensure_profile_exists(profile_home)?;
     let mut out = BTreeMap::<String, Vec<String>>::new();
     let path = routes_file(profile_home);
@@ -598,13 +603,13 @@ fn list_route_keys_by_friend(profile_home: &ProfileHome) -> Result<BTreeMap<Stri
     }
 
     for line in std::fs::read_to_string(path)?.lines() {
-        let Some((friend, record_key)) = line.split_once('\t') else {
+        let Some((known_user, record_key)) = line.split_once('\t') else {
             continue;
         };
-        if friend.trim().is_empty() || record_key.trim().is_empty() {
+        if known_user.trim().is_empty() || record_key.trim().is_empty() {
             continue;
         }
-        out.entry(friend.to_owned())
+        out.entry(known_user.to_owned())
             .or_default()
             .push(record_key.to_owned());
     }
@@ -614,40 +619,40 @@ fn list_route_keys_by_friend(profile_home: &ProfileHome) -> Result<BTreeMap<Stri
 
 fn write_routes(profile_home: &ProfileHome, routes: &BTreeMap<String, Vec<String>>) -> Result<()> {
     let mut lines = Vec::new();
-    for (friend, keys) in routes {
+    for (known_user, keys) in routes {
         for key in keys {
-            lines.push(format!("{friend}\t{key}"));
+            lines.push(format!("{known_user}\t{key}"));
         }
     }
     std::fs::write(routes_file(profile_home), lines.join("\n"))?;
     Ok(())
 }
 
-fn parse_friends_file(path: &Path) -> Result<Vec<FriendEntry>> {
+fn parse_known_users_file(path: &Path) -> Result<Vec<KnownUserEntry>> {
     if !path.exists() {
         return Ok(Vec::new());
     }
 
-    let mut friends = Vec::new();
+    let mut known_users = Vec::new();
     for line in std::fs::read_to_string(path)?.lines() {
         let Some((name, pubkey)) = line.split_once('\t') else {
             continue;
         };
 
-        friends.push(FriendEntry {
+        known_users.push(KnownUserEntry {
             name: name.to_owned(),
             pubkey: pubkey.parse::<PublicKey>()?,
         });
     }
 
-    friends.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(friends)
+    known_users.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(known_users)
 }
 
-fn write_friends_file(path: &Path, friends: &[FriendEntry]) -> Result<()> {
-    let lines = friends
+fn write_known_users_file(path: &Path, known_users: &[KnownUserEntry]) -> Result<()> {
+    let lines = known_users
         .iter()
-        .map(|f| format!("{}\t{}", f.name, f.pubkey))
+        .map(|entry| format!("{}\t{}", entry.name, entry.pubkey))
         .collect::<Vec<_>>();
     std::fs::write(path, lines.join("\n"))?;
     Ok(())
@@ -665,8 +670,8 @@ fn keypair_file(profile_home: &ProfileHome) -> PathBuf {
     profile_home.profile_dir().join(KEYPAIR_FILE)
 }
 
-fn friends_file(profile_home: &ProfileHome) -> PathBuf {
-    profile_home.profile_dir().join(FRIENDS_FILE)
+fn known_users_file(profile_home: &ProfileHome) -> PathBuf {
+    profile_home.profile_dir().join(KNOWN_USERS_FILE)
 }
 
 fn routes_file(profile_home: &ProfileHome) -> PathBuf {

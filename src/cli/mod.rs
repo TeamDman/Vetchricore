@@ -1,16 +1,16 @@
 pub mod app_state;
-pub mod friend;
 pub mod global_args;
 pub mod key;
+pub mod known_user;
 pub mod profile;
 pub mod route;
 pub mod send;
 pub mod test;
 pub mod veilid_runtime;
 
-use crate::cli::friend::FriendArgs;
 use crate::cli::global_args::GlobalArgs;
 use crate::cli::key::KeyArgs;
+use crate::cli::known_user::KnownUserArgs;
 use crate::cli::profile::ProfileArgs;
 use crate::cli::route::RouteArgs;
 use crate::cli::send::SendArgs;
@@ -35,6 +35,10 @@ pub trait ToArgs {
 }
 
 #[derive(Clone, Debug)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "context fields are intentionally grouped by *_home semantics"
+)]
 pub struct InvokeContext {
     app_home: AppHome,
     cache_home: CacheHome,
@@ -123,6 +127,16 @@ impl Cli {
         runtime.block_on(async move { self.command.invoke(&context).await })?;
         Ok(())
     }
+
+    #[must_use]
+    pub fn display_invocation(command: &impl ToArgs) -> String {
+        command
+            .to_args()
+            .iter()
+            .map(|arg| arg.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
 }
 
 impl ToArgs for Cli {
@@ -140,8 +154,8 @@ impl ToArgs for Cli {
 pub enum Command {
     /// Profile management commands.
     Profile(ProfileArgs),
-    /// Friend management commands.
-    Friend(FriendArgs),
+    /// Known-user management commands.
+    KnownUser(KnownUserArgs),
     /// Key management commands.
     Key(KeyArgs),
     /// Route management commands.
@@ -159,7 +173,7 @@ impl Command {
     pub async fn invoke(self, context: &InvokeContext) -> eyre::Result<()> {
         match self {
             Command::Profile(args) => args.invoke(context).await,
-            Command::Friend(args) => args.invoke(context).await,
+            Command::KnownUser(args) => args.invoke(context).await,
             Command::Key(args) => args.invoke(context).await,
             Command::Route(args) => args.invoke(context).await,
             Command::Send(args) => args.invoke(context).await,
@@ -176,9 +190,9 @@ impl ToArgs for Command {
                 args.push("profile".into());
                 args.extend(profile_args.to_args());
             }
-            Command::Friend(friend_args) => {
-                args.push("friend".into());
-                args.extend(friend_args.to_args());
+            Command::KnownUser(known_user_args) => {
+                args.push("known-user".into());
+                args.extend(known_user_args.to_args());
             }
             Command::Key(key_args) => {
                 args.push("key".into());

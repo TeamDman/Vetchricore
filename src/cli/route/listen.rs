@@ -1,6 +1,10 @@
+use crate::cli::Cli;
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
 use crate::cli::app_state;
+use crate::cli::route::RouteArgs;
+use crate::cli::route::RouteCommand;
+use crate::cli::route::create::RouteCreateArgs;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -15,9 +19,9 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
-use veilid_core::RouteBlob;
 use veilid_core::CRYPTO_KIND_VLD0;
 use veilid_core::DHTSchema;
+use veilid_core::RouteBlob;
 use veilid_core::RouteId;
 use veilid_core::VeilidUpdate;
 
@@ -51,33 +55,41 @@ impl RouteListenArgs {
 ///
 /// Returns an error if the profile/route identity cannot be loaded,
 /// attachment readiness is not reached, or Veilid operations fail.
+#[expect(
+    clippy::too_many_lines,
+    reason = "listen flow includes setup, callback wiring, and runtime loop"
+)]
 pub async fn listen_on_named_route(
     context: &InvokeContext,
     route_name: &str,
     message_count_limit: Option<usize>,
 ) -> Result<()> {
     let profile_home = context.profile_home();
-    let identity =
-        app_state::local_route_identity(profile_home, route_name)?.ok_or_else(|| {
-            eyre::eyre!(
-                "Route '{}' does not exist. Create it with 'vetchricore route create {} --listen'.",
-                route_name,
-                route_name
-            )
-        })?;
+    let identity = app_state::local_route_identity(profile_home, route_name)?.ok_or_else(|| {
+        eyre::eyre!(
+            "Route '{}' does not exist. Create it with '{}'.",
+            route_name,
+            Cli::display_invocation(&RouteArgs {
+                command: RouteCommand::Create(RouteCreateArgs {
+                    name: route_name.to_owned(),
+                    listen: true,
+                }),
+            })
+        )
+    })?;
 
     let public_internet_ready = Arc::new(AtomicBool::new(false));
-    let friend_map = Arc::new(Mutex::new(
-        app_state::list_friends(profile_home)?
+    let known_user_map = Arc::new(Mutex::new(
+        app_state::list_known_users(profile_home)?
             .into_iter()
-            .map(|f| (f.pubkey.to_string(), f.name))
+            .map(|entry| (entry.pubkey.to_string(), entry.name))
             .collect::<std::collections::HashMap<_, _>>(),
     ));
     let dead_routes = Arc::new(Mutex::new(HashSet::<RouteId>::new()));
     let printed_messages = Arc::new(AtomicUsize::new(0));
     let callback = route_update_callback(
         Arc::clone(&public_internet_ready),
-        Arc::clone(&friend_map),
+        Arc::clone(&known_user_map),
         Arc::clone(&dead_routes),
         Arc::clone(&printed_messages),
     );
@@ -171,7 +183,7 @@ pub async fn listen_on_named_route(
 
 fn route_update_callback(
     public_internet_ready: Arc<AtomicBool>,
-    friend_map: Arc<Mutex<std::collections::HashMap<String, String>>>,
+    known_user_map: Arc<Mutex<std::collections::HashMap<String, String>>>,
     dead_routes: Arc<Mutex<HashSet<RouteId>>>,
     printed_messages: Arc<AtomicUsize>,
 ) -> crate::cli::veilid_runtime::UpdateCallback {
@@ -182,7 +194,7 @@ fn route_update_callback(
         VeilidUpdate::AppMessage(message) => {
             let text = String::from_utf8_lossy(message.message()).to_string();
             if let Some((pubkey, body)) = text.split_once('|') {
-                if let Ok(guard) = friend_map.lock() {
+                if let Ok(guard) = known_user_map.lock() {
                     if let Some(name) = guard.get(pubkey) {
                         println!("{name}> {body}");
                     } else {
@@ -258,7 +270,10 @@ async fn allocate_private_route_with_retry(
         }
     }
 
-    bail!("Unable to allocate private route after {} attempts.", max_attempts)
+    bail!(
+        "Unable to allocate private route after {} attempts.",
+        max_attempts
+    )
 }
 
 fn is_try_again_route_allocation_error(error: &veilid_core::VeilidAPIError) -> bool {

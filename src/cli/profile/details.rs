@@ -41,27 +41,27 @@ pub(super) fn print_detailed_profile(profile_home: &ProfileHome, is_active: bool
         }
     }
 
-    let friends = app_state::list_friends(profile_home)?;
-    println!("  {} {}", paint(YELLOW, "friends:"), friends.len());
-    if friends.is_empty() {
+    let known_users = app_state::list_known_users(profile_home)?;
+    println!("  {} {}", paint(YELLOW, "known users:"), known_users.len());
+    if known_users.is_empty() {
         println!("    {}", paint(DIM, "<none>"));
     } else {
-        for friend in &friends {
-            println!("    {} ({})", friend.name, friend.pubkey);
+        for known_user in &known_users {
+            println!("    {} ({})", known_user.name, known_user.pubkey);
         }
     }
 
-    let friend_routes = app_state::list_friend_route_keys(profile_home, None)?;
+    let known_user_routes = app_state::list_known_user_route_keys(profile_home, None)?;
     println!(
         "  {} {}",
-        paint(YELLOW, "friend routes:"),
-        friend_routes.len()
+        paint(YELLOW, "known-user routes:"),
+        known_user_routes.len()
     );
-    if friend_routes.is_empty() {
+    if known_user_routes.is_empty() {
         println!("    {}", paint(DIM, "<none>"));
     } else {
-        for route in &friend_routes {
-            println!("    {} -> {}", route.friend, route.record_key);
+        for route in &known_user_routes {
+            println!("    {} -> {}", route.known_user, route.record_key);
         }
     }
 

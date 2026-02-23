@@ -8,14 +8,14 @@ use figue as args;
 use veilid_core::PublicKey;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq)]
-pub struct FriendAddArgs {
+pub struct KnownUserAddArgs {
     #[facet(args::positional)]
     pub name: String,
     #[facet(args::positional)]
     pub pubkey: String,
 }
 
-impl FriendAddArgs {
+impl KnownUserAddArgs {
     #[expect(
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
@@ -23,13 +23,13 @@ impl FriendAddArgs {
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         let profile_home = context.profile_home();
         let pubkey = self.pubkey.parse::<PublicKey>()?;
-        app_state::add_friend(profile_home, &self.name, pubkey)?;
-        println!("You have added {} as a friend.", self.name);
+        app_state::add_known_user(profile_home, &self.name, pubkey)?;
+        println!("You have added {} as a known user.", self.name);
         Ok(())
     }
 }
 
-impl ToArgs for FriendAddArgs {
+impl ToArgs for KnownUserAddArgs {
     fn to_args(&self) -> Vec<std::ffi::OsString> {
         vec![self.name.clone().into(), self.pubkey.clone().into()]
     }

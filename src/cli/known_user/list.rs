@@ -6,25 +6,25 @@ use eyre::Result;
 use facet::Facet;
 
 #[derive(Facet, Arbitrary, Debug, PartialEq, Default)]
-pub struct FriendListArgs;
+pub struct KnownUserListArgs;
 
-impl FriendListArgs {
+impl KnownUserListArgs {
     #[expect(
         clippy::unused_async,
         reason = "command handlers use async invoke signature consistently"
     )]
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
-        let friends = app_state::list_friends(context.profile_home())?;
-        if friends.is_empty() {
-            println!("You have no friends. A new dawn awaits.");
+        let known_users = app_state::list_known_users(context.profile_home())?;
+        if known_users.is_empty() {
+            println!("You have no known users. A new dawn awaits.");
             return Ok(());
         }
 
-        for friend in friends {
-            println!("{} ({})", friend.name, friend.pubkey);
+        for known_user in known_users {
+            println!("{} ({})", known_user.name, known_user.pubkey);
         }
         Ok(())
     }
 }
 
-impl ToArgs for FriendListArgs {}
+impl ToArgs for KnownUserListArgs {}
