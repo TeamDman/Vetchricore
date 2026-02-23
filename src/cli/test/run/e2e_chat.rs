@@ -17,7 +17,7 @@ use crate::cli::profile::ProfileCommand;
 use crate::cli::profile::add::ProfileAddArgs;
 use crate::cli::route::RouteArgs;
 use crate::cli::route::RouteCommand;
-use crate::cli::route::create::RouteCreateArgs;
+use crate::cli::route::add::RouteAddArgs;
 use crate::cli::route::listen::RouteListenArgs;
 use crate::cli::route::show::RouteShowArgs;
 use crate::cli::send::SendArgs;
@@ -145,7 +145,7 @@ async fn run_e2e_chat() -> Result<()> {
         &cache_dir,
         Some("Janet"),
         &CliCommand::Route(RouteArgs {
-            command: RouteCommand::Create(RouteCreateArgs {
+            command: RouteCommand::Add(RouteAddArgs {
                 name: "janet-inbox".to_owned(),
                 listen: false,
             }),
@@ -175,7 +175,7 @@ async fn run_e2e_chat() -> Result<()> {
             command: KnownUserCommand::Route(KnownUserRouteArgs {
                 command: KnownUserRouteCommand::Add(KnownUserRouteAddArgs {
                     known_user: "Janet".to_owned(),
-                    record_id: route_record_key,
+                    record_key: route_record_key,
                 }),
             }),
         }),

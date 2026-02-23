@@ -1,6 +1,6 @@
 use crate::cli::InvokeContext;
 use crate::cli::ToArgs;
-use crate::cli::route::create::RouteCreateArgs;
+use crate::cli::route::add::RouteAddArgs;
 use crate::cli::route::list::RouteListArgs;
 use crate::cli::route::listen::RouteListenArgs;
 use crate::cli::route::remove::RouteRemoveArgs;
@@ -20,7 +20,7 @@ pub struct RouteArgs {
 #[derive(Facet, Arbitrary, Debug, PartialEq)]
 #[repr(u8)]
 pub enum RouteCommand {
-    Create(RouteCreateArgs),
+    Add(RouteAddArgs),
     Listen(RouteListenArgs),
     List(RouteListArgs),
     Show(RouteShowArgs),
@@ -33,7 +33,7 @@ impl RouteArgs {
     /// Returns an error if the selected route subcommand fails.
     pub async fn invoke(self, context: &InvokeContext) -> Result<()> {
         match self.command {
-            RouteCommand::Create(args) => args.invoke(context).await?,
+            RouteCommand::Add(args) => args.invoke(context).await?,
             RouteCommand::Listen(args) => args.invoke(context).await?,
             RouteCommand::List(args) => args.invoke(context).await?,
             RouteCommand::Show(args) => args.invoke(context).await?,
@@ -47,9 +47,9 @@ impl ToArgs for RouteArgs {
     fn to_args(&self) -> Vec<OsString> {
         let mut args = Vec::new();
         match &self.command {
-            RouteCommand::Create(create_args) => {
-                args.push("create".into());
-                args.extend(create_args.to_args());
+            RouteCommand::Add(add_args) => {
+                args.push("add".into());
+                args.extend(add_args.to_args());
             }
             RouteCommand::Listen(listen_args) => {
                 args.push("listen".into());

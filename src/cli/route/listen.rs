@@ -4,7 +4,7 @@ use crate::cli::ToArgs;
 use crate::cli::app_state;
 use crate::cli::route::RouteArgs;
 use crate::cli::route::RouteCommand;
-use crate::cli::route::create::RouteCreateArgs;
+use crate::cli::route::add::RouteAddArgs;
 use crate::cli::veilid_runtime::start_api_for_profile;
 use arbitrary::Arbitrary;
 use eyre::Result;
@@ -70,7 +70,7 @@ pub async fn listen_on_named_route(
             "Route '{}' does not exist. Create it with '{}'.",
             route_name,
             Cli::display_invocation(&RouteArgs {
-                command: RouteCommand::Create(RouteCreateArgs {
+                command: RouteCommand::Add(RouteAddArgs {
                     name: route_name.to_owned(),
                     listen: true,
                 }),
