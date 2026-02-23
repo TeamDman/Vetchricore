@@ -237,6 +237,7 @@ struct CommandOutput {
     _stderr: String,
 }
 
+#[track_caller]
 fn run_typed(
     exe: &Path,
     home_dir: &Path,
@@ -250,6 +251,7 @@ fn run_typed(
     run_cli(exe, &args, profile_label, &command_display)
 }
 
+#[track_caller]
 fn run_cli(
     exe: &Path,
     args: &[OsString],
@@ -264,6 +266,7 @@ fn run_cli(
     Ok(output)
 }
 
+#[track_caller]
 fn run_cli_once(exe: &Path, args: &[OsString], profile: &str) -> Result<CommandOutput> {
     let streaming_child = spawn_streaming(exe, args, profile)?;
     collect_streaming_output(streaming_child)
