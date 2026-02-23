@@ -4,8 +4,8 @@ use arbitrary::Arbitrary;
 use facet::Facet;
 use facet::Type;
 use facet::UserType;
-use rand::rngs::OsRng;
 use rand::TryRngCore;
+use rand::rngs::OsRng;
 use vetchricore::cli::Cli;
 use vetchricore::cli::ToArgs;
 
@@ -65,6 +65,10 @@ fn to_kebab_case(name: &str) -> String {
     }
 
     out
+}
+
+fn normalize_command_token(token: &str) -> String {
+    token.replace('_', "-").to_ascii_lowercase()
 }
 
 fn unwrap_option_shape(mut shape: &'static facet::Shape) -> &'static facet::Shape {
@@ -132,7 +136,8 @@ fn node_from_fields(fields: &'static [facet::Field]) -> CommandNode {
 
         if field.has_attr(Some("args"), "named") {
             let flag_name = to_kebab_case(field.effective_name());
-            let consumes_value = !field.has_attr(Some("args"), "counted") && !field_is_bool_flag(field);
+            let consumes_value =
+                !field.has_attr(Some("args"), "counted") && !field_is_bool_flag(field);
             node.named_flag_consumes_value
                 .insert(flag_name, consumes_value);
             continue;
@@ -176,7 +181,10 @@ fn collect_command_paths(root: &CommandNode) -> Vec<Vec<String>> {
     output
 }
 
-fn extract_subcommand_path_from_args(args: &[std::ffi::OsString], root: &CommandNode) -> Vec<String> {
+fn extract_subcommand_path_from_args(
+    args: &[std::ffi::OsString],
+    root: &CommandNode,
+) -> Vec<String> {
     let tokens = args
         .iter()
         .map(|arg| arg.to_string_lossy().to_string())
@@ -219,7 +227,7 @@ fn extract_subcommand_path_from_args(args: &[std::ffi::OsString], root: &Command
             if let Some(branch) = node
                 .subcommands
                 .iter()
-                .find(|branch| branch.cli_name == *token)
+                .find(|branch| branch.cli_name == normalize_command_token(token))
             {
                 output.push(branch.effective_name.clone());
                 *index += 1;
@@ -324,4 +332,3 @@ fn fuzz_cli_args_roundtrip() {
         );
     }
 }
-
